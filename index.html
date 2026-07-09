@@ -24,13 +24,13 @@
 
 <div class="card">
   <label>1) Choose a valid .riffle template</label>
-  <input id="templateFile" type="file" accept=".riffle,text/plain" />
-  <div class="hint">Use a .riffle that already opens in Riffler. The converter preserves its structure and only patches the tune slots.</div>
+  <input id="templateFile" type="file" />
+  <div class="hint">Use a .riffle that already opens in Riffler. On iPad, this picker now accepts any file; select your .riffle from Files/Downloads/iCloud Drive.</div>
 </div>
 
 <div class="card">
   <label>2) Choose MIDI file</label>
-  <input id="midiFile" type="file" accept=".mid,.midi,audio/midi" />
+  <input id="midiFile" type="file" />
   <div class="hint">Best results: a simple melody MIDI. If you cannot upload MIDI, paste the event dump below instead.</div>
   <label>Optional: paste MIDI event dump</label>
   <textarea id="eventDump" placeholder="Example:&#10;0.000s | tick 0 | ch 1 | Note On E3 (52) vel 127&#10;0.099s | tick 240 | ch 1 | Note Off E3 (52) vel 0"></textarea>
@@ -181,6 +181,8 @@ async function convert(){
 }
 $('previewBtn').addEventListener('click', preview);
 $('convertBtn').addEventListener('click', convert);
+$('templateFile').addEventListener('change', ()=>{ const f=$('templateFile').files[0]; if(f) log('Template selected: '+f.name+'\nNow choose a MIDI file or paste an event dump.'); });
+$('midiFile').addEventListener('change', ()=>{ const f=$('midiFile').files[0]; if(f) log('MIDI selected: '+f.name+'\nTap Preview or Convert.'); });
 </script>
 </body>
 </html>
