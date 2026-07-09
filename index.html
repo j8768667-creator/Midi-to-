@@ -1,91 +1,186 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Riffler App – MIDI to .riffle</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MIDI to Riffle Converter</title>
 <style>
-:root{--bg:#f6f3ed;--ink:#203127;--card:#fffaf1;--line:#d7cdbd;--accent:#2f4f3e;--muted:#6e766f}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
-main{max-width:960px;margin:0 auto;padding:24px}h1{margin:0 0 8px;font-size:30px}p{line-height:1.45}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin:16px 0;box-shadow:0 1px 0 rgba(0,0,0,.03)}
-button,.button{background:var(--accent);color:white;border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;display:inline-block;text-decoration:none}button:disabled{opacity:.45}input[type=file]{display:block;margin:10px 0}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}label{font-weight:600}.small{font-size:13px;color:var(--muted)}textarea{width:100%;min-height:190px;border:1px solid var(--line);border-radius:12px;padding:12px;font-family:ui-monospace,Menlo,monospace;background:white;box-sizing:border-box}.log{white-space:pre-wrap;background:white;border:1px solid var(--line);border-radius:12px;padding:12px;min-height:100px;font-family:ui-monospace,Menlo,monospace}.pill{display:inline-block;background:#e8dfcf;border:1px solid #d3c6b1;border-radius:999px;padding:3px 9px;margin:2px;font-size:12px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.field{background:white;border:1px solid var(--line);border-radius:12px;padding:10px}.field input,.field select{width:100%;box-sizing:border-box;margin-top:6px;padding:8px;border:1px solid var(--line);border-radius:8px}</style>
+  :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#17221c;background:#f7f4ee}
+  body{margin:0;padding:18px;max-width:900px;margin:auto}
+  h1{font-size:26px;margin:6px 0 4px}.sub{color:#5e665f;margin:0 0 18px}
+  .card{background:#fff;border:1px solid #ddd4c7;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0000000b}
+  label{font-weight:700;display:block;margin:8px 0 6px}.hint{font-size:14px;color:#626b64;margin-top:6px;line-height:1.35}
+  input[type=file],textarea,select,input[type=number]{font-size:16px;width:100%;box-sizing:border-box;margin:4px 0 8px}
+  textarea{min-height:130px;border:1px solid #cfc7bb;border-radius:10px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  button{font-size:17px;font-weight:700;border:0;border-radius:12px;background:#2f4f3e;color:white;padding:12px 16px;margin:6px 6px 6px 0}
+  button.secondary{background:#7a6b58}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.status{white-space:pre-wrap;background:#f4f1ea;border-radius:12px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;max-height:260px;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:6px;border-bottom:1px solid #eee;text-align:left}.ok{color:#1f7a39}.bad{color:#a33}
+  @media(max-width:700px){.row{grid-template-columns:1fr}body{padding:12px}}
+</style>
 </head>
-<body><main>
-<h1>Riffler App</h1>
-<p>Single-file iPad-friendly converter for simple MIDI files or pasted MIDI event dumps. Upload this file as <code>index.html</code> to GitHub Pages.</p>
-<div class="card"><h2>How to use on iPad</h2><p>Tap <b>Choose File</b> to select a MIDI from Files, or paste an event dump. Then tap <b>Download .riffle</b>. The exported file will appear in Downloads/Files and can be opened in Riffler.</p></div>
+<body>
+<h1>MIDI → .riffle Converter</h1>
+<p class="sub">iPad-friendly converter. Uses a valid .riffle as the structural template so Riffler is less likely to reject the output.</p>
+
 <div class="card">
-<h2>1. Import MIDI</h2>
-<input id="midiFile" type="file" accept=".mid,.midi,audio/midi">
-<p class="small">Works with simple melody MIDIs. For complex multi-track files it keeps the earliest/highest note at each slot.</p>
+  <label>1) Choose a valid .riffle template</label>
+  <input id="templateFile" type="file" accept=".riffle,text/plain" />
+  <div class="hint">Use a .riffle that already opens in Riffler. The converter preserves its structure and only patches the tune slots.</div>
 </div>
+
 <div class="card">
-<h2>Or paste a MIDI event dump</h2>
-<textarea id="eventDump" placeholder="Paste lines like: tick 0 | ... Note On E3 (52) vel 127"></textarea>
-<div class="row"><button id="parseDump">Parse pasted event dump</button><button id="useKnown">Load your known riff example</button></div>
+  <label>2) Choose MIDI file</label>
+  <input id="midiFile" type="file" accept=".mid,.midi,audio/midi" />
+  <div class="hint">Best results: a simple melody MIDI. If you cannot upload MIDI, paste the event dump below instead.</div>
+  <label>Optional: paste MIDI event dump</label>
+  <textarea id="eventDump" placeholder="Example:&#10;0.000s | tick 0 | ch 1 | Note On E3 (52) vel 127&#10;0.099s | tick 240 | ch 1 | Note Off E3 (52) vel 0"></textarea>
 </div>
+
+<div class="card row">
+  <div>
+    <label>Pitch mapping</label>
+    <select id="pitchOffset">
+      <option value="-12" selected>MIDI note - 12</option>
+      <option value="0">MIDI note unchanged</option>
+      <option value="12">MIDI note + 12</option>
+      <option value="-24">MIDI note - 24</option>
+    </select>
+  </div>
+  <div>
+    <label>Max note slots</label>
+    <input id="maxSlots" type="number" value="128" min="8" max="512" step="8" />
+  </div>
+</div>
+
 <div class="card">
-<h2>2. Conversion settings</h2>
-<div class="grid">
-<div class="field"><label>Riffler pitch offset</label><input id="pitchOffset" type="number" value="-12"></div>
-<div class="field"><label>Notes per bar</label><input id="notesPerBar" type="number" value="8"></div>
-<div class="field"><label>Slot duration</label><input id="slotDuration" type="number" value="500"></div>
-<div class="field"><label>Max note slots</label><input id="maxSlots" type="number" value="512"></div>
+  <button id="convertBtn">Convert and download .riffle</button>
+  <button class="secondary" id="previewBtn">Preview extracted notes</button>
+  <div id="status" class="status">Ready.</div>
 </div>
-</div>
+
 <div class="card">
-<h2>3. Preview</h2>
-<div id="summary" class="small">No notes loaded yet.</div>
-<div id="notes"></div>
+  <h3>Extracted notes</h3>
+  <div id="notesTable" class="hint">No notes extracted yet.</div>
 </div>
-<div class="card">
-<h2>4. Export</h2>
-<div class="row"><button id="exportBtn" disabled>Download .riffle</button><button id="downloadJson" disabled>Download debug JSON</button></div>
-</div>
-<div class="card"><h2>Log</h2><div id="log" class="log"></div></div>
-</main>
+
 <script>
-const TEMPLATE = [200, 7200, 8, 0, 69, 0, 0, 1, 0, 0, 0, 3, 1, 1, 5, 1, 4, 1, 1, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 0, 0, 0, 0, 90, 4, 69, 5, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40, 47, 56, 40, 47, 57, 40, 47, 0, 40, 47, 56, 40, 47, 57, 40, 47, 0, 48, 55, 62, 48, 55, 60, 48, 55, 0, 57, 55, 48, 55, 59, 55, 48, 55, 0, 41, 48, 51, 41, 48, 56, 41, 48, 0, 41, 48, 51, 41, 48, 56, 41, 48, 0, 43, 50, 57, 43, 50, 55, 43, 50, 0, 52, 50, 43, 50, 54, 50, 43, 50, 0, -1, -1, -1, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 500, 500, 500, 500, 500, 500, 500, 500, 0, 500, 500, 500, 500, 500, 500, 500, 500, 0, 500, 500, 500, 500, 500, 500, 500, 500, 0, 500, 500, 500, 500, 500, 500, 500, 500, 0, 500, 500, 500, 500, 500, 500, 500, 500, 0, 500, 500, 500, 500, 500, 500, 500, 500, 0, 500, 500, 500, 500, 500, 500, 500, 500, 0, 500, 500, 500, 500, 500, 500, 500, 500, 0, -1, -1, -1, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 126, 125, 123, 126, 125, 123, 126, 125, 0, 126, 125, 123, 126, 125, 123, 126, 125, 0, 126, 125, 123, 126, 125, 123, 126, 125, 0, 123, 125, 126, 125, 123, 125, 126, 125, 0, 126, 125, 123, 126, 125, 123, 126, 125, 0, 126, 125, 123, 126, 125, 123, 126, 125, 0, 126, 125, 123, 126, 125, 123, 126, 125, 0, 123, 125, 126, 125, 123, 125, 126, 125, 0, -1, -1, -1, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 69, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 42, 43, 32, 32, 42, 37, 32, 32, 42, 43, 32, 32, 42, 37, 32, 32, 48, 34, 34, 41, 41, 31, 31, 31, 48, 34, 34, 41, 41, 31, 31, 31, 31, 42, 42, 36, 36, 33, 33, 33, 31, 42, 42, 36, 36, 33, 33, 33, 48, 34, 34, 41, 41, 31, 31, 31, 48, 34, 34, 41, 41, 31, 31, 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-const KNOWN = "tick 0 | ch 1 | Note On (52) vel 127\ntick 240 | ch 1 | Note On (59) vel 127\ntick 480 | ch 1 | Note On (68) vel 127\ntick 720 | ch 1 | Note On (52) vel 127\ntick 960 | ch 1 | Note On (59) vel 127\ntick 1200 | ch 1 | Note On (69) vel 127\ntick 1440 | ch 1 | Note On (52) vel 127\ntick 1680 | ch 1 | Note On (59) vel 127\ntick 1920 | ch 1 | Note On (52) vel 127\ntick 2160 | ch 1 | Note On (59) vel 127\ntick 2400 | ch 1 | Note On (68) vel 127\ntick 2640 | ch 1 | Note On (52) vel 127\ntick 2880 | ch 1 | Note On (59) vel 127\ntick 3120 | ch 1 | Note On (69) vel 127\ntick 3360 | ch 1 | Note On (52) vel 127\ntick 3600 | ch 1 | Note On (59) vel 127\ntick 3840 | ch 1 | Note On (60) vel 127\ntick 4080 | ch 1 | Note On (67) vel 127\ntick 4320 | ch 1 | Note On (74) vel 127\ntick 4560 | ch 1 | Note On (60) vel 127\ntick 4800 | ch 1 | Note On (67) vel 127\ntick 5040 | ch 1 | Note On (72) vel 127\ntick 5280 | ch 1 | Note On (60) vel 127\ntick 5520 | ch 1 | Note On (67) vel 127\ntick 5760 | ch 1 | Note On (69) vel 127\ntick 6000 | ch 1 | Note On (67) vel 127\ntick 6240 | ch 1 | Note On (60) vel 127\ntick 6480 | ch 1 | Note On (67) vel 127\ntick 6720 | ch 1 | Note On (71) vel 127\ntick 6960 | ch 1 | Note On (67) vel 127\ntick 7200 | ch 1 | Note On (60) vel 127\ntick 7440 | ch 1 | Note On (67) vel 127\ntick 7680 | ch 1 | Note On (53) vel 127\ntick 7920 | ch 1 | Note On (60) vel 127\ntick 8160 | ch 1 | Note On (63) vel 127\ntick 8400 | ch 1 | Note On (53) vel 127\ntick 8640 | ch 1 | Note On (60) vel 127\ntick 8880 | ch 1 | Note On (68) vel 127\ntick 9120 | ch 1 | Note On (53) vel 127\ntick 9360 | ch 1 | Note On (60) vel 127\ntick 9600 | ch 1 | Note On (53) vel 127\ntick 9840 | ch 1 | Note On (60) vel 127\ntick 10080 | ch 1 | Note On (63) vel 127\ntick 10320 | ch 1 | Note On (53) vel 127\ntick 10560 | ch 1 | Note On (60) vel 127\ntick 10800 | ch 1 | Note On (68) vel 127\ntick 11040 | ch 1 | Note On (53) vel 127\ntick 11280 | ch 1 | Note On (60) vel 127\ntick 11520 | ch 1 | Note On (55) vel 127\ntick 11760 | ch 1 | Note On (62) vel 127\ntick 12000 | ch 1 | Note On (69) vel 127\ntick 12240 | ch 1 | Note On (55) vel 127\ntick 12480 | ch 1 | Note On (62) vel 127\ntick 12720 | ch 1 | Note On (67) vel 127\ntick 12960 | ch 1 | Note On (55) vel 127\ntick 13200 | ch 1 | Note On (62) vel 127\ntick 13440 | ch 1 | Note On (64) vel 127\ntick 13680 | ch 1 | Note On (62) vel 127\ntick 13920 | ch 1 | Note On (55) vel 127\ntick 14160 | ch 1 | Note On (62) vel 127\ntick 14400 | ch 1 | Note On (66) vel 127\ntick 14640 | ch 1 | Note On (62) vel 127\ntick 14880 | ch 1 | Note On (55) vel 127\ntick 15120 | ch 1 | Note On (62) vel 127";
-let currentNotes = [];
-function log(s){document.getElementById('log').textContent += s + '\n'}
-function noteName(n){const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];return names[n%12]+(Math.floor(n/12)-1)}
-function setNotes(notes, source){currentNotes = notes.sort((a,b)=>a.tick-b.tick || b.note-a.note); renderNotes(source)}
-function renderNotes(source){const div=document.getElementById('notes'); div.innerHTML=''; const s=document.getElementById('summary');
- s.textContent = `${currentNotes.length} note events loaded from ${source}.`;
- currentNotes.slice(0,96).forEach((n,i)=>{let span=document.createElement('span'); span.className='pill'; span.textContent=`${i+1}: ${noteName(n.note)} (${n.note}) @ ${n.tick}`; div.appendChild(span)});
- document.getElementById('exportBtn').disabled=currentNotes.length===0; document.getElementById('downloadJson').disabled=currentNotes.length===0;}
-function parseDumpText(text){const notes=[]; const re=/tick\s+(\d+).*?Note On\s+[^()]*\((\d+)\)\s+vel\s+([1-9]\d*)/i; for(const line of text.split(/\r?\n/)){const m=line.match(re); if(m) notes.push({tick:+m[1],note:+m[2],vel:+m[3],dur:240});} return notes;}
-function writeUtf16File(arr){
- const s=arr.join(',');
- const bytes=new Uint8Array(s.length*2);
- for(let i=0;i<s.length;i++){const c=s.charCodeAt(i); bytes[i*2]=c & 255; bytes[i*2+1]=c>>8;}
- return new Blob([bytes], {type:'application/octet-stream'});
+const $ = id => document.getElementById(id);
+let lastTemplate = null, lastTemplateText = null, lastTemplateNums = null;
+let lastMidiBytes = null;
+
+function log(msg){ $('status').textContent = msg; }
+function readFileBytes(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(new Uint8Array(r.result)); r.onerror=rej; r.readAsArrayBuffer(file); }); }
+function readTextUTF16(bytes){
+  if(bytes[0]===0xFF && bytes[1]===0xFE){
+    let s=''; for(let i=2;i+1<bytes.length;i+=2) s+=String.fromCharCode(bytes[i] | (bytes[i+1]<<8)); return s;
+  }
+  if(bytes[0]===0xFE && bytes[1]===0xFF){
+    let s=''; for(let i=2;i+1<bytes.length;i+=2) s+=String.fromCharCode((bytes[i]<<8) | bytes[i+1]); return s;
+  }
+  return new TextDecoder('utf-8').decode(bytes);
 }
-function convertToRiffle(notes){const arr=TEMPLATE.slice(); const pitchOffset=+document.getElementById('pitchOffset').value; const notesPerBar=+document.getElementById('notesPerBar').value; const dur=+document.getElementById('slotDuration').value; const maxSlots=+document.getElementById('maxSlots').value;
- // Clear the three main slot tables but preserve everything else.
- for(let i=0;i<512;i++){arr[1024+i]=0; arr[1536+i]=0; arr[2048+i]=0;}
- // Infer grid from minimum positive tick gap, default 240.
- const ticks=notes.map(n=>n.tick).sort((a,b)=>a-b); let grid=240; for(let i=1;i<ticks.length;i++){let d=ticks[i]-ticks[i-1]; if(d>0 && d<grid) grid=d;} if(!grid || grid<1) grid=240;
- // One slot per note, plus a bar separator after each bar.
- let slot=0; let inBar=0;
- for(const n of notes){ if(slot>=maxSlots-8) break; arr[1024+slot]=n.note + pitchOffset; arr[1536+slot]=dur; // 126 low, 125 mid, 123 high. This matches your known file pattern closely.
-   const r=n.note+pitchOffset; arr[2048+slot] = r < 46 ? 126 : (r < 54 ? 125 : 123);
-   slot++; inBar++; if(inBar===notesPerBar){arr[1024+slot]=0; arr[1536+slot]=0; arr[2048+slot]=0; slot++; inBar=0;}}
- // End markers: copied pattern found in the working Riffler file.
- const end=[-1,-1,-1,-1,-1,0,-1,0]; for(let j=0;j<end.length && slot+j<512;j++){arr[1024+slot+j]=end[j]; arr[1536+slot+j]=end[j]; arr[2048+slot+j]=end[j];}
- return {arr, grid, slotsUsed:slot+8};}
-function download(name, blob){const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove()},1000)}
+function encodeUTF16LEWithBOM(s){
+  const out = new Uint8Array(2 + s.length*2); out[0]=0xFF; out[1]=0xFE;
+  for(let i=0;i<s.length;i++){ const c=s.charCodeAt(i); out[2+i*2]=c&255; out[3+i*2]=c>>8; }
+  return out;
+}
+function parseRiffleText(s){
+  return s.split(',').map(x=>x.trim()).filter(x=>x.length).map(x=>parseInt(x,10));
+}
+function serializeRiffle(nums){ return nums.join(','); }
 
-document.getElementById('parseDump').onclick=()=>{const notes=parseDumpText(document.getElementById('eventDump').value); setNotes(notes,'pasted event dump'); log(`Parsed ${notes.length} Note On events.`)};
-document.getElementById('useKnown').onclick=()=>{document.getElementById('eventDump').value=KNOWN; const notes=parseDumpText(KNOWN); setNotes(notes,'known example'); log('Loaded the known example event dump.')};
-document.getElementById('exportBtn').onclick=()=>{const out=convertToRiffle(currentNotes); download('converted.riffle', writeUtf16File(out.arr)); log(`Exported converted.riffle using ${out.slotsUsed} riffle slots.`)};
-document.getElementById('downloadJson').onclick=()=>{const out=convertToRiffle(currentNotes); const debug={notes:currentNotes, firstPitches:out.arr.slice(1024,1120), firstDurations:out.arr.slice(1536,1632), firstFinger:out.arr.slice(2048,2144)}; download('riffler-debug.json', new Blob([JSON.stringify(debug,null,2)],{type:'application/json'}))};
-
-document.getElementById('midiFile').addEventListener('change', async ev=>{const file=ev.target.files[0]; if(!file)return; const buf=await file.arrayBuffer(); try{const notes=parseMidi(buf); setNotes(notes,file.name); log(`Parsed ${notes.length} notes from ${file.name}.`)}catch(e){log('MIDI parse error: '+e.message)}});
-function parseMidi(buffer){const dv=new DataView(buffer); let p=0; const readStr=n=>{let s=''; for(let i=0;i<n;i++)s+=String.fromCharCode(dv.getUint8(p++)); return s}; const read32=()=>{let v=dv.getUint32(p); p+=4; return v}; const read16=()=>{let v=dv.getUint16(p); p+=2; return v}; const readVar=()=>{let v=0,b; do{b=dv.getUint8(p++); v=(v<<7)|(b&127)}while(b&128); return v};
- if(readStr(4)!=='MThd') throw new Error('Not a standard MIDI file'); const hlen=read32(); const format=read16(); const ntrks=read16(); const division=read16(); p += hlen-6; const all=[];
- for(let t=0;t<ntrks;t++){if(readStr(4)!=='MTrk') throw new Error('Missing MTrk'); const len=read32(); const end=p+len; let tick=0, status=0; const active={}; while(p<end){tick += readVar(); let b=dv.getUint8(p++); if(b<128){p--; b=status}else status=b; if(b===0xff){const type=dv.getUint8(p++); const l=readVar(); p+=l; continue;} if(b===0xf0||b===0xf7){const l=readVar(); p+=l; continue;} const cmd=b&0xf0, ch=b&0x0f; const d1=dv.getUint8(p++); let d2=0; if(cmd!==0xc0 && cmd!==0xd0) d2=dv.getUint8(p++); if(cmd===0x90 && d2>0){active[ch+','+d1]=tick; all.push({tick,note:d1,vel:d2,dur:division/2});} }}
- // quantize + dedupe: keep highest note per tick
- const by={}; for(const n of all){const q=Math.round(n.tick/(division/2))*(division/2); if(!by[q] || n.note>by[q].note) by[q]={...n,tick:q};} return Object.values(by).sort((a,b)=>a.tick-b.tick || b.note-a.note);}
-</script></body></html>
+function readVarLen(bytes, pos){ let value=0, b; do{ b=bytes[pos++]; value=(value<<7)|(b&0x7f); }while(b&0x80); return [value,pos]; }
+function parseMidi(bytes){
+  function str(pos,n){ return String.fromCharCode(...bytes.slice(pos,pos+n)); }
+  if(str(0,4)!=='MThd') throw new Error('Not a standard MIDI file');
+  const hdrLen=(bytes[4]<<24)|(bytes[5]<<16)|(bytes[6]<<8)|bytes[7];
+  const format=(bytes[8]<<8)|bytes[9], tracks=(bytes[10]<<8)|bytes[11], ppq=(bytes[12]<<8)|bytes[13];
+  let pos=8+hdrLen, notes=[], tempo=500000;
+  for(let t=0;t<tracks;t++){
+    if(str(pos,4)!=='MTrk') throw new Error('Missing MTrk chunk');
+    const len=(bytes[pos+4]<<24)|(bytes[pos+5]<<16)|(bytes[pos+6]<<8)|bytes[pos+7]; pos+=8;
+    const end=pos+len; let tick=0, running=0, open={};
+    while(pos<end){
+      let r=readVarLen(bytes,pos); tick+=r[0]; pos=r[1];
+      let status=bytes[pos++]; if(status<0x80){ pos--; status=running; } else running=status;
+      if(status===0xff){ const type=bytes[pos++]; r=readVarLen(bytes,pos); const l=r[0]; pos=r[1];
+        if(type===0x51 && l===3) tempo=(bytes[pos]<<16)|(bytes[pos+1]<<8)|bytes[pos+2]; pos+=l; continue;
+      }
+      if(status===0xf0 || status===0xf7){ r=readVarLen(bytes,pos); pos=r[1]+r[0]; continue; }
+      const cmd=status&0xf0, ch=status&0x0f;
+      const a=bytes[pos++], b=(cmd===0xc0||cmd===0xd0)?0:bytes[pos++];
+      if(cmd===0x90 && b>0){ (open[ch+':'+a] ||= []).push({tick, note:a, vel:b, ch}); }
+      else if(cmd===0x80 || (cmd===0x90 && b===0)){
+        const key=ch+':'+a; const arr=open[key]; if(arr&&arr.length){ const n=arr.shift(); n.end=tick; n.dur=tick-n.tick; notes.push(n); }
+      }
+    }
+    pos=end;
+  }
+  notes.sort((a,b)=>a.tick-b.tick || b.note-a.note);
+  return {format, tracks, ppq, tempo, notes};
+}
+function parseDump(text){
+  const notes=[], open={};
+  for(const line of text.split(/\n+/)){
+    const tickM=line.match(/tick\s+(\d+)/i); const noteM=line.match(/Note\s+(On|Off)\s+[^\(]*\((\d+)\).*?vel\s+(\d+)/i);
+    if(!tickM||!noteM) continue; const tick=+tickM[1], typ=noteM[1].toLowerCase(), note=+noteM[2], vel=+noteM[3];
+    if(typ==='on' && vel>0){ (open[note] ||= []).push({tick,note,vel}); }
+    else { const arr=open[note]; if(arr&&arr.length){ const n=arr.shift(); n.end=tick; n.dur=tick-n.tick; notes.push(n); } }
+  }
+  notes.sort((a,b)=>a.tick-b.tick || b.note-a.note);
+  return {format:'dump', tracks:1, ppq:480, tempo:null, notes};
+}
+function melodyFromNotes(notes){
+  // One note per start tick: choose highest pitch, which is often the melody if chords appear.
+  const byTick = new Map();
+  for(const n of notes){ if(n.note<=12) continue; const ex=byTick.get(n.tick); if(!ex || n.note>ex.note) byTick.set(n.tick,n); }
+  return [...byTick.values()].sort((a,b)=>a.tick-b.tick);
+}
+function renderNotes(notes){
+  if(!notes.length){ $('notesTable').textContent='No notes found.'; return; }
+  const rows=notes.slice(0,80).map((n,i)=>`<tr><td>${i+1}</td><td>${n.tick}</td><td>${n.note}</td><td>${noteName(n.note)}</td><td>${n.dur||''}</td></tr>`).join('');
+  $('notesTable').innerHTML = `<table><tr><th>#</th><th>Tick</th><th>MIDI</th><th>Name</th><th>Dur</th></tr>${rows}</table>` + (notes.length>80?`<p class="hint">Showing first 80 of ${notes.length} notes.</p>`:'');
+}
+function noteName(n){ const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; return names[n%12]+(Math.floor(n/12)-1); }
+async function loadInputs(){
+  const tf=$('templateFile').files[0]; if(!tf) throw new Error('Please choose a valid .riffle template first.');
+  const tb=await readFileBytes(tf); lastTemplateText=readTextUTF16(tb); lastTemplateNums=parseRiffleText(lastTemplateText);
+  if(lastTemplateNums.length<1200) throw new Error('Template does not look like a valid .riffle integer file.');
+  let midi=null;
+  const mf=$('midiFile').files[0];
+  if(mf){ midi=parseMidi(await readFileBytes(mf)); }
+  else if($('eventDump').value.trim()) midi=parseDump($('eventDump').value);
+  else throw new Error('Please choose a MIDI file or paste a MIDI event dump.');
+  const melody=melodyFromNotes(midi.notes);
+  if(!melody.length) throw new Error('No usable notes found in the MIDI.');
+  renderNotes(melody);
+  return {nums:lastTemplateNums.slice(), midi, melody};
+}
+function patchRiffle(nums, melody){
+  const start=1024; // observed primary pitch slot table
+  const maxSlots=Math.min(+$('maxSlots').value||128, nums.length-start);
+  const offset=+$('pitchOffset').value;
+  // Preserve template outside note slots. Inside selected slots: write converted notes, then rest/end markers.
+  for(let i=0;i<maxSlots;i++){
+    if(i<melody.length) nums[start+i]=melody[i].note + offset;
+    else nums[start+i]=-1;
+  }
+  // Keep header mostly unchanged for safety. Tempo is not patched by default.
+  return nums;
+}
+async function preview(){ try{ const {midi,melody}=await loadInputs(); log(`MIDI loaded.\nFormat: ${midi.format}\nTracks: ${midi.tracks}\nPPQ: ${midi.ppq}\nExtracted melody notes: ${melody.length}\nFirst notes: ${melody.slice(0,24).map(n=>noteName(n.note)).join(' ')}`); }catch(e){ log('Error: '+e.message); } }
+async function convert(){
+  try{
+    const {nums,midi,melody}=await loadInputs();
+    const patched=patchRiffle(nums, melody);
+    const text=serializeRiffle(patched);
+    const blob=new Blob([encodeUTF16LEWithBOM(text)], {type:'application/octet-stream'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='converted_from_midi.riffle'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1000);
+    log(`Converted and downloaded.\nTemplate values: ${nums.length}\nMelody notes written: ${Math.min(melody.length, +$('maxSlots').value||128)}\nPitch mapping: MIDI ${+$('pitchOffset').value>=0?'+':''}${$('pitchOffset').value}\n\nImportant: if Riffler rejects it, try a template file that already contains a similar length tune.`);
+  }catch(e){ log('Error: '+e.message); }
+}
+$('previewBtn').addEventListener('click', preview);
+$('convertBtn').addEventListener('click', convert);
+</script>
+</body>
+</html>
