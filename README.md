@@ -1,4 +1,4 @@
-# Riffler Composer
+# Composer
 
 Ready-to-publish GitHub Pages site.
 
