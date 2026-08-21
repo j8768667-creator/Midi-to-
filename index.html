@@ -551,22 +551,8 @@ function buildConverted(){
   if(repeat && events.length > 0){
     const original = events.slice();
     while(events.length < capacity){
-      // We need to offset ticks so that the repeated pattern starts after the previous end.
-      // Simply append a copy without shifting? That would cause overlapping ticks.
-      // Better to shift each subsequent copy by the total duration of the original sequence (in ticks).
-      // We'll compute the maximum tick of the original, then add that offset for each repetition.
-      // But we need to preserve the relative timing.
-      // Simpler: repeat the pattern as is, but we must not exceed capacity.
-      // We'll just concatenate without shifting; the ticks will be repeated exactly, which is fine
-      // because the slots are indexed by position, not by absolute tick.
-      // Actually, we want to fill slots sequentially, not preserve absolute ticks.
-      // So we just copy the events as they are, and they will be placed at the next available slot indices.
-      // Since we are going to write events into slots by index (i from 0 to capacity-1),
-      // repeating the list will just fill more slots with the same pattern.
-      // That's fine.
       events = events.concat(original);
     }
-    // Trim to capacity.
     events = events.slice(0, capacity);
   }
 
@@ -603,10 +589,13 @@ function buildConverted(){
   if(lm==='fit') limit=Math.min(limit,capacity);
   if(lm==='all') limit=capacity;
 
-  // If we have more events than limit, we need to truncate, but we already did that.
-  // If we want to enforce the limit after repeat, we may have extra events beyond limit.
-  // We already sliced to capacity; we can just let the loop above write only up to limit.
-  // But we wrote for all i up to capacity; we need to clear beyond limit if fillUnused.
+  // Truncate events to the requested limit.
+  const writtenEvents = events.slice(0, limit);
+
+  // Set the note count at index 0 so Riffler knows how many notes to read.
+  base[0] = writtenEvents.length;
+
+  // If fillUnused is on, clear any slots beyond the limit.
   if(fillUnused){
     for(let i=limit;i<capacity;i++){
       base[s.pitchStart+i]=0;
@@ -617,7 +606,7 @@ function buildConverted(){
 
   return {
     nums:base,
-    events:events.slice(0,limit),
+    events:writtenEvents,
     grid:g,
     bpm,
     sourceCount:source.length,
