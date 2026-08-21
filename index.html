@@ -48,9 +48,8 @@ td,th{padding:6px;border-bottom:1px solid #eee;text-align:left}
 
 <h1>MIDI → Riffler .riffle</h1>
 <p class="sub">
-  Browser-only converter for GitHub Pages. It keeps a valid Riffler file as the structural template,
-  but converts MIDI timing, duration, velocity and note events into the three observed musical planes.
-  <strong>All unused slots are filled with rests (0) to avoid early‑stop markers.</strong>
+  Browser-only converter. <strong>All musical slots (512) are fully overwritten</strong> – unused positions become rests (0).
+  No <code>-1</code> markers remain, so Riffler reads every note.
 </p>
 
 <div class="card">
@@ -59,7 +58,7 @@ td,th{padding:6px;border-bottom:1px solid #eee;text-align:left}
   <input id="templateFile" type="file" accept=".riffle,text/plain,*/*">
   <div class="hint">
     Choose a .riffle that already opens in Riffler. The converter preserves the file's non-musical
-    structure (first 1024 values) but completely replaces the three musical planes (pitch, duration, velocity).
+    structure (first 1024 values) but completely replaces the three musical planes.
   </div>
 
   <label>MIDI file</label>
@@ -134,18 +133,18 @@ tick 480 | ch 1 | Note Off E3 (52) vel 0"></textarea>
       <label>Velocity</label>
       <select id="velocityMode">
         <option value="midi" selected>Map MIDI velocity</option>
-        <option value="template">Preserve template velocity profile</option>
         <option value="fixed">Fixed</option>
       </select>
       <div class="rangeLine">
         <input id="fixedVelocity" type="range" min="1" max="127" value="100" disabled>
         <span id="fixedVelocityValue" class="rangeValue">100</span>
       </div>
+      <div class="hint">Template velocity is ignored because the plane is fully overwritten.</div>
     </div>
     <div>
       <label>Repeat pattern</label>
-      <label class="check"><input id="repeatPattern" type="checkbox"> Repeat pattern to fill all 512 slots</label>
-      <div class="hint">Enable to loop the converted events until all slots are filled. If disabled, unused slots become rests (0).</div>
+      <label class="check"><input id="repeatPattern" type="checkbox"> Repeat to fill all 512 slots</label>
+      <div class="hint">If off, unused slots become rests (0). If on, the pattern loops to fill the entire plane.</div>
     </div>
   </div>
 </div>
@@ -462,14 +461,11 @@ function observedTempo(){
 function mapVelocity(v){
   const mode=$('velocityMode').value;
   if(mode==='fixed') return Math.round(121+(+$('fixedVelocity').value/127)*6);
-  if(mode==='template') return null;
-  // Supplied files strongly cluster in 121..126. Keep that musical range while retaining dynamics.
+  // Always map from MIDI velocity to the range observed in the templates (121–126)
   return Math.max(121,Math.min(126,Math.round(121+(Math.max(1,Math.min(127,v))-1)*5/126)));
 }
 
 function durationValue(ticks,ppq){
-  // In the supplied files, 250/500 values line up naturally with 1/16 and 1/8 note units
-  // when a quarter note is 1000 units. Preserve the same convention.
   const quarter=ticks/ppq;
   const raw=quarter*1000;
   const allowed=[125,250,375,500,625,750,875,1000,1250,1500,1750,2000];
@@ -503,8 +499,7 @@ function buildConverted(){
   const mode=$('mode').value;
   const repeat=$('repeatPattern').checked;
 
-  // 512 positions is the observed musical capacity in each of the three synchronized planes.
-  const capacity=s.pitchEnd-s.pitchStart;
+  const capacity=s.pitchEnd-s.pitchStart; // 512
 
   let events=[];
   const usedKeys=new Set();
@@ -513,7 +508,6 @@ function buildConverted(){
     const start=roundToGrid(n.tick,g);
     const end=Math.max(start+1,roundToGrid(n.end??(n.tick+n.dur||n.tick+g),g));
     const key=start+':'+n.note+':'+n.track;
-    // All-notes mode can legitimately contain repeated notes, so don't deduplicate across time.
     if(mode!=='all' && usedKeys.has(start)) continue;
     usedKeys.add(key);
 
@@ -526,18 +520,16 @@ function buildConverted(){
     });
   }
 
-  // The target musical plane is a sequential event stream. For chord-like MIDI, simultaneous notes
-  // are kept as separate adjacent events; for melody/bass only one event exists per onset.
   events.sort((a,b)=>a.tick-b.tick || a.note-b.note);
 
-  // Map pitch into the observed Riffler range by octave shifts, without changing pitch class.
+  // Map pitch into observed Riffler range
   for(const e of events){
     while(e.note>52) e.note-=12;
     while(e.note<30) e.note+=12;
     e.note=Math.max(18,Math.min(76,e.note));
   }
 
-  // If repeat is enabled, duplicate the event list until we reach capacity.
+  // Repeat if requested
   if(repeat && events.length > 0){
     const original = events.slice();
     while(events.length < capacity){
@@ -546,54 +538,36 @@ function buildConverted(){
     events = events.slice(0, capacity);
   }
 
-  // Now write events into the template arrays.
-  // We will always fill all 512 slots – unused ones become 0 (rest).
-  // First, zero out the entire musical planes.
-  for(let i=0;i<capacity;i++){
+  // ------------------------------------------------------------
+  // 1. Zero out all three musical planes completely
+  for(let i=0; i<capacity; i++){
     base[s.pitchStart+i] = 0;
     base[s.durStart+i] = 0;
     base[s.velStart+i] = 0;
   }
 
-  // Write our events into the planes, up to the number of events we have.
+  // 2. Write our events up to capacity
   const writtenCount = Math.min(events.length, capacity);
-  for(let i=0;i<writtenCount;i++){
-    const e=events[i];
-    const pi=s.pitchStart+i;
-    const di=s.durStart+i;
-    const vi=s.velStart+i;
+  for(let i=0; i<writtenCount; i++){
+    const e = events[i];
+    const pi = s.pitchStart + i;
+    const di = s.durStart + i;
+    const vi = s.velStart + i;
     base[pi] = e.note;
     base[di] = durationValue(e.durTicks, state.midi.ppq);
-    const mv = mapVelocity(e.velocity);
-    if(mv !== null) base[vi] = mv;
-    // If velocity mode is 'template', we still need to set something – we'll use the mapped velocity as well.
-    // Actually if template, we want to keep the template's velocity? But we zeroed out the plane.
-    // We'll just use the mapped velocity always, because the template velocity profile is lost anyway.
-    // If user wants template velocity, they should not zero out? But we are overwriting all.
-    // Better: if velocity mode is 'template', we could copy the template's velocity values at the same indices,
-    // but we zeroed them. We'll just use the mapped velocity for all modes except 'template'? Actually we already
-    // set base[vi] = mv; if mv is null (template), we need to set something. Let's handle:
-    // If mode is 'template', we want to preserve the template's velocity values, but we zeroed them.
-    // So we should not zero out the velocity plane when mode is 'template'. Instead, we should only zero
-    // the pitch and duration planes, and leave velocity untouched, then only overwrite velocity for events
-    // if we have a non-null mv. But that complicates. Simpler: always use mapped velocity (which is never null
-    // because we fallback to fixed? Actually mapVelocity returns null only for 'template'. We can change that.
-    // Let's just set velocity to a default if null.
-    if(mv === null) {
-      // Use the template's velocity at this index if available, else 100.
-      // But we zeroed out, so we lost it. We can copy from the original template before zeroing.
-      // To avoid complexity, we'll just use a default of 100.
-      base[vi] = 100;
-    } else {
-      base[vi] = mv;
-    }
+    base[vi] = mapVelocity(e.velocity);
   }
 
-  // Patch tempo using the strong pattern visible in the supplied examples: BPM * 100.
+  // 3. Extra safety: scan pitch plane and replace any -1 with 0
+  for(let i=s.pitchStart; i<s.pitchEnd; i++){
+    if(base[i] === -1) base[i] = 0;
+  }
+
+  // 4. Set tempo
   const bpm=Math.max(40,Math.min(240,Math.round(observedTempo())));
   base[1]=bpm*100;
 
-  // Set the note count at index 0 to the number of events we actually wrote.
+  // 5. Set note count at index 0
   base[0] = writtenCount;
 
   return {
@@ -602,8 +576,7 @@ function buildConverted(){
     grid:g,
     bpm,
     sourceCount:source.length,
-    capacity,
-    structure:s
+    capacity
   };
 }
 
@@ -659,9 +632,9 @@ function updateAnalysis(){
     <span class="pill">Grid ${Math.round(g)} ticks</span>
     <p class="hint">
       Tempo changes: ${m.tempoEvents.length}. Time-signature events: ${m.timeSignatures.length}.
-      The output will overwrite the musical planes completely – all unused slots become rests (0).
+      <strong>All 512 slots will be overwritten – no -1 markers will remain.</strong>
     </p>
-    ${source.length < 50 ? '<p class="warn">Note: Few events selected. Consider switching to "All notes" mode or enabling "Repeat pattern" to fill more slots.</p>' : ''}
+    ${source.length < 50 ? '<p class="warn">Note: Few events selected. Try "All notes" mode or enable "Repeat pattern".</p>' : ''}
   `;
 }
 
@@ -719,9 +692,7 @@ async function preview(){
 
 async function convert(){
   try{
-    // If we already have MIDI data, use it without resetting state.
     if (!state.midi) {
-      // Try to load from file input or event dump.
       if ($('midiFile').files.length) {
         await loadMidi();
       } else if ($('eventDump').value.trim()) {
@@ -751,7 +722,7 @@ async function convert(){
       `Grid: ${result.grid} ticks\n` +
       `Mode: ${$('mode').selectedOptions[0].text}\n` +
       `Velocity: ${$('velocityMode').selectedOptions[0].text}\n\n` +
-      `All 512 slots have been overwritten – unused slots are rests (0).`
+      `All musical planes have been completely overwritten – no -1 markers remain.`
     );
   } catch(e){ log('Error: '+e.message); }
 }
