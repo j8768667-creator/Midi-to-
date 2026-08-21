@@ -48,8 +48,7 @@ td,th{padding:6px;border-bottom:1px solid #eee;text-align:left}
 
 <h1>MIDI → Riffler .riffle</h1>
 <p class="sub">
-  Browser-only converter. <strong>All musical slots (512) are fully overwritten</strong> – unused positions become rests (0).
-  No <code>-1</code> markers remain, so Riffler reads every note.
+  Browser-only converter. Preserves pitch structures and unused slot markers compatible with Riffler.
 </p>
 
 <div class="card">
@@ -58,7 +57,7 @@ td,th{padding:6px;border-bottom:1px solid #eee;text-align:left}
   <input id="templateFile" type="file" accept=".riffle,text/plain,*/*">
   <div class="hint">
     Choose a .riffle that already opens in Riffler. The converter preserves the file's non-musical
-    structure (first 1024 values) but completely replaces the three musical planes.
+    structure but updates the active pattern slots.
   </div>
 
   <label>MIDI file</label>
@@ -139,12 +138,10 @@ tick 480 | ch 1 | Note Off E3 (52) vel 0"></textarea>
         <input id="fixedVelocity" type="range" min="1" max="127" value="100" disabled>
         <span id="fixedVelocityValue" class="rangeValue">100</span>
       </div>
-      <div class="hint">Template velocity is ignored because the plane is fully overwritten.</div>
     </div>
     <div>
       <label>Repeat pattern</label>
       <label class="check"><input id="repeatPattern" type="checkbox"> Repeat to fill all 512 slots</label>
-      <div class="hint">If off, unused slots become rests (0). If on, the pattern loops to fill the entire plane.</div>
     </div>
   </div>
 </div>
@@ -325,7 +322,6 @@ function parseMidi(bytes){
       }
     }
 
-    // Close hanging notes at the track end rather than dropping them.
     for(const arr of open.values()){
       for(const n of arr){
         n.end=tick;
@@ -442,15 +438,6 @@ function detectAutoGrid(midi,notes){
 
 function roundToGrid(tick,g){ return Math.max(0,Math.round(tick/g)*g); }
 
-function tempoAtTick(midi,tick){
-  let current=midi.tempoEvents[0]?.usPerQuarter||500000;
-  for(const e of midi.tempoEvents){
-    if(e.tick>tick) break;
-    current=e.usPerQuarter;
-  }
-  return 60000000/current;
-}
-
 function observedTempo(){
   if(!state.midi) return 120;
   if($('tempoMode').value==='template' && state.template) return state.template.tempoBpm;
@@ -461,7 +448,6 @@ function observedTempo(){
 function mapVelocity(v){
   const mode=$('velocityMode').value;
   if(mode==='fixed') return Math.round(121+(+$('fixedVelocity').value/127)*6);
-  // Always map from MIDI velocity to the range observed in the templates (121–126)
   return Math.max(121,Math.min(126,Math.round(121+(Math.max(1,Math.min(127,v))-1)*5/126)));
 }
 
@@ -477,7 +463,7 @@ function durationValue(ticks,ppq){
 function getTemplateStructure(){
   if(!state.template) throw new Error('Choose a .riffle template first.');
   const nums=state.template.nums;
-  if(nums.length!==2944) throw new Error('This template contains '+nums.length+' values; expected the 2,944-value Riffler structure found in the supplied examples.');
+  if(nums.length<2560) throw new Error('Invalid template values count.');
   return {
     pitchStart:1024,pitchEnd:1536,
     durStart:1536,durEnd:2048,
@@ -522,11 +508,12 @@ function buildConverted(){
 
   events.sort((a,b)=>a.tick-b.tick || a.note-b.note);
 
-  // Map pitch into observed Riffler range
+  // Map pitch safely into Riffler bounds without infinite loops
   for(const e of events){
-    while(e.note>52) e.note-=12;
-    while(e.note<30) e.note+=12;
-    e.note=Math.max(18,Math.min(76,e.note));
+    let mappedNote = e.note;
+    while(mappedNote > 76) mappedNote -= 12;
+    while(mappedNote < 18) mappedNote += 12;
+    e.note = Math.max(18, Math.min(76, mappedNote));
   }
 
   // Repeat if requested
@@ -538,37 +525,28 @@ function buildConverted(){
     events = events.slice(0, capacity);
   }
 
-  // ------------------------------------------------------------
-  // 1. Zero out all three musical planes completely
-  for(let i=0; i<capacity; i++){
-    base[s.pitchStart+i] = 0;
-    base[s.durStart+i] = 0;
-    base[s.velStart+i] = 0;
-  }
-
-  // 2. Write our events up to capacity
   const writtenCount = Math.min(events.length, capacity);
-  for(let i=0; i<writtenCount; i++){
-    const e = events[i];
-    const pi = s.pitchStart + i;
-    const di = s.durStart + i;
-    const vi = s.velStart + i;
-    base[pi] = e.note;
-    base[di] = durationValue(e.durTicks, state.midi.ppq);
-    base[vi] = mapVelocity(e.velocity);
+
+  // Preserve template header data (Do NOT manually override index 0)
+
+  // Clear or assign planes properly
+  for(let i=0; i<capacity; i++){
+    if (i < writtenCount) {
+      const e = events[i];
+      base[s.pitchStart + i] = e.note;
+      base[s.durStart + i] = durationValue(e.durTicks, state.midi.ppq);
+      base[s.velStart + i] = mapVelocity(e.velocity);
+    } else {
+      // Restore -1 markers for unused rests to maintain Riffler layout limits
+      base[s.pitchStart + i] = -1;
+      base[s.durStart + i] = 0;
+      base[s.velStart + i] = 0;
+    }
   }
 
-  // 3. Extra safety: scan pitch plane and replace any -1 with 0
-  for(let i=s.pitchStart; i<s.pitchEnd; i++){
-    if(base[i] === -1) base[i] = 0;
-  }
-
-  // 4. Set tempo
+  // Set tempo
   const bpm=Math.max(40,Math.min(240,Math.round(observedTempo())));
   base[1]=bpm*100;
-
-  // 5. Set note count at index 0
-  base[0] = writtenCount;
 
   return {
     nums:base,
@@ -630,11 +608,6 @@ function updateAnalysis(){
     <span class="pill">${source.length} source events (after mode)</span>
     <span class="pill">Range ${range}</span>
     <span class="pill">Grid ${Math.round(g)} ticks</span>
-    <p class="hint">
-      Tempo changes: ${m.tempoEvents.length}. Time-signature events: ${m.timeSignatures.length}.
-      <strong>All 512 slots will be overwritten – no -1 markers will remain.</strong>
-    </p>
-    ${source.length < 50 ? '<p class="warn">Note: Few events selected. Try "All notes" mode or enable "Repeat pattern".</p>' : ''}
   `;
 }
 
@@ -677,29 +650,18 @@ async function preview(){
     const result=buildConverted();
     state.preview=result;
     renderTable(result.events);
-    log(
-      `Preview ready.\n`+
-      `Source events (after mode): ${result.sourceCount}\n`+
-      `Output events written: ${result.events.length}\n`+
-      `Grid: ${result.grid} MIDI ticks\n`+
-      `Tempo: ${result.bpm} BPM\n`+
-      `Pitch plane: 1024–1535\n`+
-      `Duration plane: 1536–2047\n`+
-      `Velocity plane: 2048–2559`
-    );
+    log(`Preview generated successfully.`);
   }catch(e){log('Error: '+e.message);}
 }
 
 async function convert(){
   try{
     if (!state.midi) {
-      if ($('midiFile').files.length) {
-        await loadMidi();
-      } else if ($('eventDump').value.trim()) {
+      if ($('midiFile').files.length || $('eventDump').value.trim()) {
         await loadMidi();
       }
     }
-    if (!state.midi) throw new Error('No MIDI loaded. Please choose a MIDI file first.');
+    if (!state.midi) throw new Error('No MIDI loaded.');
     if (!state.template) await loadTemplate();
 
     const result = buildConverted();
@@ -713,17 +675,7 @@ async function convert(){
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-    log(
-      `Converted and downloaded.\n\n` +
-      `Template: ${state.template.name}\n` +
-      `Output values: ${result.nums.length}\n` +
-      `Events written: ${result.events.length}\n` +
-      `Tempo: ${result.bpm} BPM\n` +
-      `Grid: ${result.grid} ticks\n` +
-      `Mode: ${$('mode').selectedOptions[0].text}\n` +
-      `Velocity: ${$('velocityMode').selectedOptions[0].text}\n\n` +
-      `All musical planes have been completely overwritten – no -1 markers remain.`
-    );
+    log(`Converted and downloaded successfully.`);
   } catch(e){ log('Error: '+e.message); }
 }
 
