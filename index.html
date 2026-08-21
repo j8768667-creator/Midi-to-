@@ -146,7 +146,8 @@ tick 480 | ch 1 | Note Off E3 (52) vel 0"></textarea>
       <label>Template handling</label>
       <label class="check"><input id="preserveMarkers" type="checkbox" checked> Preserve template rest/end markers</label>
       <label class="check"><input id="fillUnused" type="checkbox"> Fill unused musical slots with rests</label>
-      <div class="hint">Leaving unused slots untouched is safest when working with a known-good template.</div>
+      <label class="check"><input id="repeatPattern" type="checkbox"> Repeat pattern to fill all slots</label>
+      <div class="hint">Leaving unused slots untouched is safest when working with a known-good template. Enable "Repeat pattern" to loop the converted events until all 512 slots are filled.</div>
     </div>
   </div>
 </div>
@@ -510,11 +511,12 @@ function buildConverted(){
   const mode=$('mode').value;
   const preserveMarkers=$('preserveMarkers').checked;
   const fillUnused=$('fillUnused').checked;
+  const repeat=$('repeatPattern').checked;
 
   // 512 positions is the observed musical capacity in each of the three synchronized planes.
   const capacity=s.pitchEnd-s.pitchStart;
 
-  const events=[];
+  let events=[];
   const usedKeys=new Set();
 
   for(const n of source){
@@ -545,16 +547,37 @@ function buildConverted(){
     e.note=Math.max(18,Math.min(76,e.note));
   }
 
-  // Preserve the template's structural markers where possible. This is safer than filling all unused
-  // positions with -1, which the old converter did and which destroys template information.
+  // If repeat is enabled, duplicate the event list until we reach capacity.
+  if(repeat && events.length > 0){
+    const original = events.slice();
+    while(events.length < capacity){
+      // We need to offset ticks so that the repeated pattern starts after the previous end.
+      // Simply append a copy without shifting? That would cause overlapping ticks.
+      // Better to shift each subsequent copy by the total duration of the original sequence (in ticks).
+      // We'll compute the maximum tick of the original, then add that offset for each repetition.
+      // But we need to preserve the relative timing.
+      // Simpler: repeat the pattern as is, but we must not exceed capacity.
+      // We'll just concatenate without shifting; the ticks will be repeated exactly, which is fine
+      // because the slots are indexed by position, not by absolute tick.
+      // Actually, we want to fill slots sequentially, not preserve absolute ticks.
+      // So we just copy the events as they are, and they will be placed at the next available slot indices.
+      // Since we are going to write events into slots by index (i from 0 to capacity-1),
+      // repeating the list will just fill more slots with the same pattern.
+      // That's fine.
+      events = events.concat(original);
+    }
+    // Trim to capacity.
+    events = events.slice(0, capacity);
+  }
+
+  // Now write events into the template arrays.
+  // Preserve the template's structural markers where possible.
   for(let i=0;i<capacity;i++){
     const pi=s.pitchStart+i, di=s.durStart+i, vi=s.velStart+i;
     if(i>=events.length){
       if(fillUnused){
         base[pi]=0; base[di]=0; base[vi]=0;
-      }else if(!preserveMarkers){
-        // Leave the original template untouched.
-      }
+      } // else leave untouched
       continue;
     }
 
@@ -580,8 +603,16 @@ function buildConverted(){
   if(lm==='fit') limit=Math.min(limit,capacity);
   if(lm==='all') limit=capacity;
 
-  for(let i=limit;i<capacity;i++){
-    if(fillUnused){ base[s.pitchStart+i]=0;base[s.durStart+i]=0;base[s.velStart+i]=0; }
+  // If we have more events than limit, we need to truncate, but we already did that.
+  // If we want to enforce the limit after repeat, we may have extra events beyond limit.
+  // We already sliced to capacity; we can just let the loop above write only up to limit.
+  // But we wrote for all i up to capacity; we need to clear beyond limit if fillUnused.
+  if(fillUnused){
+    for(let i=limit;i<capacity;i++){
+      base[s.pitchStart+i]=0;
+      base[s.durStart+i]=0;
+      base[s.velStart+i]=0;
+    }
   }
 
   return {
@@ -612,7 +643,8 @@ function renderTable(events){
       <tr><th>#</th><th>Grid tick</th><th>Pitch</th><th>MIDI</th><th>Dur ticks</th><th>Vel</th><th>.riffle dur</th></tr>
       ${rows}
     </table>
-    ${events.length>100?'<p class="hint">Showing first 100 converted events.</p>':''}`;
+    ${events.length>100?'<p class="hint">Showing first 100 converted events.</p>':''}
+    <p class="hint">Total converted events: ${events.length}</p>`;
 }
 
 function updateTrackList(){
@@ -641,14 +673,16 @@ function updateAnalysis(){
     <span class="pill">PPQ ${m.ppq}</span>
     <span class="pill">${Math.round(m.tempo)} BPM</span>
     <span class="pill">${bars.toFixed(2)} bars @ 4/4 equivalent</span>
-    <span class="pill">${source.length} source events</span>
+    <span class="pill">${source.length} source events (after mode)</span>
     <span class="pill">Range ${range}</span>
     <span class="pill">Grid ${Math.round(g)} ticks</span>
     <p class="hint">
       Tempo changes: ${m.tempoEvents.length}. Time-signature events: ${m.timeSignatures.length}.
       The output will preserve the selected template's 2,944-value structure and write pitch,
       duration and velocity into the three synchronized 512-value musical planes.
-    </p>`;
+    </p>
+    ${source.length < 50 ? '<p class="warn">Note: Few events selected. Consider switching to "All notes" mode or enabling "Repeat pattern" to fill more slots.</p>' : ''}
+  `;
 }
 
 async function loadTemplate(){
@@ -692,8 +726,8 @@ async function preview(){
     renderTable(result.events);
     log(
       `Preview ready.\n`+
-      `Source events: ${result.sourceCount}\n`+
-      `Output events: ${result.events.length}\n`+
+      `Source events (after mode): ${result.sourceCount}\n`+
+      `Output events written: ${result.events.length}\n`+
       `Grid: ${result.grid} MIDI ticks\n`+
       `Tempo: ${result.bpm} BPM\n`+
       `Pitch plane: 1024–1535\n`+
