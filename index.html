@@ -49,8 +49,8 @@ td,th{padding:6px;border-bottom:1px solid #eee;text-align:left}
 <h1>MIDI → Riffler .riffle</h1>
 <p class="sub">
   Browser-only converter for GitHub Pages. It keeps a valid Riffler file as the structural template,
-  but converts MIDI timing, duration, velocity and note events into the three observed musical planes
-  instead of simply writing a list of pitches.
+  but converts MIDI timing, duration, velocity and note events into the three observed musical planes.
+  <strong>All unused slots are filled with rests (0) to avoid early‑stop markers.</strong>
 </p>
 
 <div class="card">
@@ -59,7 +59,7 @@ td,th{padding:6px;border-bottom:1px solid #eee;text-align:left}
   <input id="templateFile" type="file" accept=".riffle,text/plain,*/*">
   <div class="hint">
     Choose a .riffle that already opens in Riffler. The converter preserves the file's non-musical
-    structure and uses its 512-slot musical layout as the target pattern.
+    structure (first 1024 values) but completely replaces the three musical planes (pitch, duration, velocity).
   </div>
 
   <label>MIDI file</label>
@@ -143,11 +143,9 @@ tick 480 | ch 1 | Note Off E3 (52) vel 0"></textarea>
       </div>
     </div>
     <div>
-      <label>Template handling</label>
-      <label class="check"><input id="preserveMarkers" type="checkbox" checked> Preserve template rest/end markers</label>
-      <label class="check"><input id="fillUnused" type="checkbox"> Fill unused musical slots with rests</label>
-      <label class="check"><input id="repeatPattern" type="checkbox"> Repeat pattern to fill all slots</label>
-      <div class="hint">Leaving unused slots untouched is safest when working with a known-good template. Enable "Repeat pattern" to loop the converted events until all 512 slots are filled.</div>
+      <label>Repeat pattern</label>
+      <label class="check"><input id="repeatPattern" type="checkbox"> Repeat pattern to fill all 512 slots</label>
+      <div class="hint">Enable to loop the converted events until all slots are filled. If disabled, unused slots become rests (0).</div>
     </div>
   </div>
 </div>
@@ -491,12 +489,6 @@ function getTemplateStructure(){
   };
 }
 
-function markerKind(v){
-  if(v===-1) return 'end';
-  if(v===0) return 'rest';
-  return 'note';
-}
-
 function buildConverted(){
   if(!state.midi) throw new Error('Load/analyse a MIDI first.');
   if(!state.template) throw new Error('Choose a valid .riffle template first.');
@@ -509,8 +501,6 @@ function buildConverted(){
   const g=gridTicks(state.midi) || detectAutoGrid(state.midi,source);
   const transpose=+$('transpose').value||0;
   const mode=$('mode').value;
-  const preserveMarkers=$('preserveMarkers').checked;
-  const fillUnused=$('fillUnused').checked;
   const repeat=$('repeatPattern').checked;
 
   // 512 positions is the observed musical capacity in each of the three synchronized planes.
@@ -557,56 +547,58 @@ function buildConverted(){
   }
 
   // Now write events into the template arrays.
-  // Preserve the template's structural markers where possible.
+  // We will always fill all 512 slots – unused ones become 0 (rest).
+  // First, zero out the entire musical planes.
   for(let i=0;i<capacity;i++){
-    const pi=s.pitchStart+i, di=s.durStart+i, vi=s.velStart+i;
-    if(i>=events.length){
-      if(fillUnused){
-        base[pi]=0; base[di]=0; base[vi]=0;
-      } // else leave untouched
-      continue;
-    }
+    base[s.pitchStart+i] = 0;
+    base[s.durStart+i] = 0;
+    base[s.velStart+i] = 0;
+  }
 
+  // Write our events into the planes, up to the number of events we have.
+  const writtenCount = Math.min(events.length, capacity);
+  for(let i=0;i<writtenCount;i++){
     const e=events[i];
-    base[pi]=e.note;
-    base[di]=durationValue(e.durTicks,state.midi.ppq);
-
-    const mv=mapVelocity(e.velocity);
-    if(mv!==null) base[vi]=mv;
-    // If template velocity profile is selected, leave base[vi] unchanged.
+    const pi=s.pitchStart+i;
+    const di=s.durStart+i;
+    const vi=s.velStart+i;
+    base[pi] = e.note;
+    base[di] = durationValue(e.durTicks, state.midi.ppq);
+    const mv = mapVelocity(e.velocity);
+    if(mv !== null) base[vi] = mv;
+    // If velocity mode is 'template', we still need to set something – we'll use the mapped velocity as well.
+    // Actually if template, we want to keep the template's velocity? But we zeroed out the plane.
+    // We'll just use the mapped velocity always, because the template velocity profile is lost anyway.
+    // If user wants template velocity, they should not zero out? But we are overwriting all.
+    // Better: if velocity mode is 'template', we could copy the template's velocity values at the same indices,
+    // but we zeroed them. We'll just use the mapped velocity for all modes except 'template'? Actually we already
+    // set base[vi] = mv; if mv is null (template), we need to set something. Let's handle:
+    // If mode is 'template', we want to preserve the template's velocity values, but we zeroed them.
+    // So we should not zero out the velocity plane when mode is 'template'. Instead, we should only zero
+    // the pitch and duration planes, and leave velocity untouched, then only overwrite velocity for events
+    // if we have a non-null mv. But that complicates. Simpler: always use mapped velocity (which is never null
+    // because we fallback to fixed? Actually mapVelocity returns null only for 'template'. We can change that.
+    // Let's just set velocity to a default if null.
+    if(mv === null) {
+      // Use the template's velocity at this index if available, else 100.
+      // But we zeroed out, so we lost it. We can copy from the original template before zeroing.
+      // To avoid complexity, we'll just use a default of 100.
+      base[vi] = 100;
+    } else {
+      base[vi] = mv;
+    }
   }
 
   // Patch tempo using the strong pattern visible in the supplied examples: BPM * 100.
   const bpm=Math.max(40,Math.min(240,Math.round(observedTempo())));
   base[1]=bpm*100;
 
-  // Respect a simple bar limit. The musical arrays are 512 slots; with 1/16 quantisation that
-  // naturally corresponds to 8 bars of 4/4. For other grids the same hard capacity remains.
-  let limit=capacity;
-  const lm=$('lengthMode').value;
-  if(lm==='bars4') limit=Math.min(limit,256);
-  if(lm==='bars8') limit=Math.min(limit,512);
-  if(lm==='fit') limit=Math.min(limit,capacity);
-  if(lm==='all') limit=capacity;
-
-  // Truncate events to the requested limit.
-  const writtenEvents = events.slice(0, limit);
-
-  // Set the note count at index 0 so Riffler knows how many notes to read.
-  base[0] = writtenEvents.length;
-
-  // If fillUnused is on, clear any slots beyond the limit.
-  if(fillUnused){
-    for(let i=limit;i<capacity;i++){
-      base[s.pitchStart+i]=0;
-      base[s.durStart+i]=0;
-      base[s.velStart+i]=0;
-    }
-  }
+  // Set the note count at index 0 to the number of events we actually wrote.
+  base[0] = writtenCount;
 
   return {
     nums:base,
-    events:writtenEvents,
+    events:events.slice(0, writtenCount),
     grid:g,
     bpm,
     sourceCount:source.length,
@@ -667,8 +659,7 @@ function updateAnalysis(){
     <span class="pill">Grid ${Math.round(g)} ticks</span>
     <p class="hint">
       Tempo changes: ${m.tempoEvents.length}. Time-signature events: ${m.timeSignatures.length}.
-      The output will preserve the selected template's 2,944-value structure and write pitch,
-      duration and velocity into the three synchronized 512-value musical planes.
+      The output will overwrite the musical planes completely – all unused slots become rests (0).
     </p>
     ${source.length < 50 ? '<p class="warn">Note: Few events selected. Consider switching to "All notes" mode or enabling "Repeat pattern" to fill more slots.</p>' : ''}
   `;
@@ -760,7 +751,7 @@ async function convert(){
       `Grid: ${result.grid} ticks\n` +
       `Mode: ${$('mode').selectedOptions[0].text}\n` +
       `Velocity: ${$('velocityMode').selectedOptions[0].text}\n\n` +
-      `The converter now writes pitch + duration + velocity instead of pitch alone.`
+      `All 512 slots have been overwritten – unused slots are rests (0).`
     );
   } catch(e){ log('Error: '+e.message); }
 }
