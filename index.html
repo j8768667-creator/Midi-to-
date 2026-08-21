@@ -1,714 +1,287 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MIDI → Riffler .riffle Converter</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MIDI to Riffle Converter</title>
 <style>
-:root{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  color:#17221c;background:#f7f4ee
-}
-*{box-sizing:border-box}
-body{margin:0;padding:18px;max-width:980px;margin:auto}
-h1{font-size:27px;margin:5px 0 4px}
-h2{font-size:19px;margin:0 0 10px}
-h3{font-size:16px;margin:16px 0 8px}
-.sub{color:#5e665f;margin:0 0 18px;line-height:1.45}
-.card{background:#fff;border:1px solid #ddd4c7;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0000000b}
-label{font-weight:700;display:block;margin:8px 0 6px}
-.hint{font-size:13px;color:#626b64;line-height:1.4;margin:5px 0 9px}
-input[type=file],textarea,select,input[type=number],input[type=range]{
-  font-size:16px;width:100%;box-sizing:border-box;margin:4px 0 8px
-}
-textarea{min-height:120px;border:1px solid #cfc7bb;border-radius:10px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-button{font-size:16px;font-weight:700;border:0;border-radius:12px;background:#2f4f3e;color:white;padding:12px 16px;margin:6px 6px 6px 0;cursor:pointer}
-button.secondary{background:#7a6b58}
-button:disabled{opacity:.45;cursor:not-allowed}
-.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.check{display:flex;gap:9px;align-items:flex-start;font-weight:600;margin:9px 0}
-.check input{width:auto;margin-top:3px}
-.status{white-space:pre-wrap;background:#f4f1ea;border-radius:12px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;max-height:320px;overflow:auto}
-.pill{display:inline-block;background:#eee8de;border-radius:999px;padding:4px 8px;margin:2px;font-size:12px}
-.ok{color:#1f7a39}.warn{color:#8a6500}.bad{color:#a33}
-table{width:100%;border-collapse:collapse;font-size:13px}
-td,th{padding:6px;border-bottom:1px solid #eee;text-align:left}
-.small{font-size:12px;color:#626b64}
-.hidden{display:none}
-.rangeLine{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
-.rangeValue{font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
-@media(max-width:700px){
-  .row,.row3{grid-template-columns:1fr}
-  body{padding:12px}
-}
+  :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#17221c;background:#f7f4ee}
+  body{margin:0;padding:18px;max-width:900px;margin:auto}
+  h1{font-size:26px;margin:6px 0 4px}.sub{color:#5e665f;margin:0 0 18px}
+  .card{background:#fff;border:1px solid #ddd4c7;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0000000b}
+  label{font-weight:700;display:block;margin:8px 0 6px}.hint{font-size:14px;color:#626b64;margin-top:6px;line-height:1.35}
+  input[type=file],textarea,select,input[type=number]{font-size:16px;width:100%;box-sizing:border-box;margin:4px 0 8px}
+  textarea{min-height:130px;border:1px solid #cfc7bb;border-radius:10px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  button{font-size:17px;font-weight:700;border:0;border-radius:12px;background:#2f4f3e;color:white;padding:12px 16px;margin:6px 6px 6px 0}
+  button.secondary{background:#7a6b58}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.status{white-space:pre-wrap;background:#f4f1ea;border-radius:12px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;max-height:320px;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:6px;border-bottom:1px solid #eee;text-align:left}.ok{color:#1f7a39}.bad{color:#a33}
+  @media(max-width:700px){.row{grid-template-columns:1fr}body{padding:12px}}
 </style>
 </head>
 <body>
-
-<h1>MIDI → Riffler .riffle</h1>
-<p class="sub">
-  Browser-only converter. Preserves pitch structures and unused slot markers compatible with Riffler.
-</p>
+<h1>MIDI → .riffle Converter</h1>
+<p class="sub">iPad-friendly converter. Uses a valid .riffle as a structural template: instead of guessing where notes live, it learns the template's own note-slot layout (pitch / duration / gate tables kept in lockstep) and refills it with your MIDI, so the block structure Riffler expects stays intact.</p>
 
 <div class="card">
-  <h2>1. Files</h2>
-  <label>Valid .riffle template</label>
-  <input id="templateFile" type="file" accept=".riffle,text/plain,*/*">
-  <div class="hint">
-    Choose a .riffle that already opens in Riffler. The converter preserves the file's non-musical
-    structure but updates the active pattern slots.
-  </div>
-
-  <label>MIDI file</label>
-  <input id="midiFile" type="file" accept=".mid,.midi,audio/midi,*/*">
-  <div class="hint">Standard format 0/1 MIDI is supported. Tempo changes and note durations are retained.</div>
-
-  <label>Optional MIDI event dump</label>
-  <textarea id="eventDump" placeholder="tick 0 | ch 1 | Note On E3 (52) vel 127
-tick 480 | ch 1 | Note Off E3 (52) vel 0"></textarea>
-  <div class="hint">Used only when no MIDI file is selected. The parser assumes PPQ 480 for pasted dumps.</div>
+  <label>1) Choose a valid .riffle template</label>
+  <input id="templateFile" type="file" />
+  <div class="hint">Use a .riffle that already opens in Riffler. Pick one whose length/complexity is close to your MIDI — the converter can only use as many note slots as the template provides (see "Template capacity" after loading).</div>
 </div>
 
 <div class="card">
-  <h2>2. Conversion</h2>
+  <label>2) Choose MIDI file</label>
+  <input id="midiFile" type="file" />
+  <div class="hint">Best results: a simple melody or chordal MIDI. If you cannot upload MIDI, paste the event dump below instead.</div>
+  <label>Optional: paste MIDI event dump</label>
+  <textarea id="eventDump" placeholder="Example:&#10;0.000s | tick 0 | ch 1 | Note On E3 (52) vel 127&#10;0.099s | tick 240 | ch 1 | Note Off E3 (52) vel 0"></textarea>
+</div>
 
-  <div class="row3">
-    <div>
-      <label>Source mode</label>
-      <select id="mode">
-        <option value="melody" selected>Melody — highest note per onset</option>
-        <option value="lowest">Bass — lowest note per onset</option>
-        <option value="all">All notes — preserve simultaneous notes</option>
-        <option value="track">Selected MIDI track</option>
-      </select>
-    </div>
-    <div>
-      <label>Track</label>
-      <select id="trackSelect" disabled><option value="0">Load MIDI first</option></select>
-    </div>
-    <div>
-      <label>Quantisation</label>
-      <select id="grid">
-        <option value="auto" selected>Auto</option>
-        <option value="quarter">1/4</option>
-        <option value="eighth">1/8</option>
-        <option value="sixteenth">1/16</option>
-        <option value="thirtysecond">1/32</option>
-        <option value="triplet8">1/8 triplet</option>
-        <option value="triplet16">1/16 triplet</option>
-      </select>
-    </div>
+<div class="card row">
+  <div>
+    <label>Pitch mapping</label>
+    <select id="pitchOffset">
+      <option value="-12" selected>MIDI note - 12</option>
+      <option value="0">MIDI note unchanged</option>
+      <option value="12">MIDI note + 12</option>
+      <option value="-24">MIDI note - 24</option>
+    </select>
   </div>
-
-  <div class="row3">
-    <div>
-      <label>Transpose (semitones)</label>
-      <input id="transpose" type="number" value="0" min="-48" max="48" step="1">
-      <div class="hint">Applied after quantisation. Riffler's observed note range is approximately F#0–E3.</div>
-    </div>
-    <div>
-      <label>Tempo</label>
-      <select id="tempoMode">
-        <option value="midi" selected>Use MIDI tempo</option>
-        <option value="template">Keep template tempo</option>
-        <option value="manual">Manual BPM</option>
-      </select>
-      <input id="manualTempo" type="number" value="100" min="40" max="240" step="1" disabled>
-    </div>
-    <div>
-      <label>Length</label>
-      <select id="lengthMode">
-        <option value="fit" selected>Fit source to template</option>
-        <option value="bars4">First 4 bars</option>
-        <option value="bars8">First 8 bars</option>
-        <option value="all">As much as 512 slots</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="row">
-    <div>
-      <label>Velocity</label>
-      <select id="velocityMode">
-        <option value="midi" selected>Map MIDI velocity</option>
-        <option value="fixed">Fixed</option>
-      </select>
-      <div class="rangeLine">
-        <input id="fixedVelocity" type="range" min="1" max="127" value="100" disabled>
-        <span id="fixedVelocityValue" class="rangeValue">100</span>
-      </div>
-    </div>
-    <div>
-      <label>Repeat pattern</label>
-      <label class="check"><input id="repeatPattern" type="checkbox"> Repeat to fill all 512 slots</label>
-    </div>
+  <div>
+    <label>Chord notes</label>
+    <select id="chordMode">
+      <option value="all" selected>Keep all simultaneous notes (strum)</option>
+      <option value="top">Top note only (melody line)</option>
+      <option value="bottom">Bottom note only (bass line)</option>
+    </select>
   </div>
 </div>
 
 <div class="card">
-  <h2>3. Analyse</h2>
-  <button id="analyseBtn" class="secondary">Analyse MIDI</button>
-  <button id="previewBtn" class="secondary">Preview conversion</button>
-  <div id="analysis" class="hint">No MIDI loaded.</div>
-</div>
-
-<div class="card">
-  <h2>4. Export</h2>
-  <button id="convertBtn" disabled>Convert and download .riffle</button>
+  <button id="convertBtn">Convert and download .riffle</button>
+  <button class="secondary" id="previewBtn">Preview extracted notes</button>
   <div id="status" class="status">Ready.</div>
+  <div id="downloadLink"></div>
 </div>
 
 <div class="card">
-  <h2>Converted events</h2>
-  <div id="notesTable" class="hint">Nothing to preview yet.</div>
+  <h3>Extracted notes</h3>
+  <div id="notesTable" class="hint">No notes extracted yet.</div>
 </div>
 
 <script>
-'use strict';
-
 const $ = id => document.getElementById(id);
-let state = {
-  template: null,
-  midi: null,
-  selectedTrack: 0,
-  preview: null
-};
-
 function log(msg){ $('status').textContent = msg; }
-
-function readFileBytes(file){
-  return new Promise((resolve,reject)=>{
-    const r = new FileReader();
-    r.onload=()=>resolve(new Uint8Array(r.result));
-    r.onerror=reject;
-    r.readAsArrayBuffer(file);
-  });
-}
-
+function readFileBytes(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(new Uint8Array(r.result)); r.onerror=rej; r.readAsArrayBuffer(file); }); }
 function readTextUTF16(bytes){
-  if(bytes.length>=2 && bytes[0]===0xFF && bytes[1]===0xFE){
-    let s='';
-    for(let i=2;i+1<bytes.length;i+=2) s+=String.fromCharCode(bytes[i] | (bytes[i+1]<<8));
-    return s;
+  if(bytes[0]===0xFF && bytes[1]===0xFE){
+    let s=''; for(let i=2;i+1<bytes.length;i+=2) s+=String.fromCharCode(bytes[i] | (bytes[i+1]<<8)); return s;
   }
-  if(bytes.length>=2 && bytes[0]===0xFE && bytes[1]===0xFF){
-    let s='';
-    for(let i=2;i+1<bytes.length;i+=2) s+=String.fromCharCode((bytes[i]<<8) | bytes[i+1]);
-    return s;
+  if(bytes[0]===0xFE && bytes[1]===0xFF){
+    let s=''; for(let i=2;i+1<bytes.length;i+=2) s+=String.fromCharCode((bytes[i]<<8) | bytes[i+1]); return s;
   }
   return new TextDecoder('utf-8').decode(bytes);
 }
-
 function encodeUTF16LEWithBOM(s){
-  const out=new Uint8Array(2+s.length*2);
-  out[0]=0xFF; out[1]=0xFE;
-  for(let i=0;i<s.length;i++){
-    const c=s.charCodeAt(i);
-    out[2+i*2]=c&255;
-    out[3+i*2]=c>>8;
-  }
+  const out = new Uint8Array(2 + s.length*2); out[0]=0xFF; out[1]=0xFE;
+  for(let i=0;i<s.length;i++){ const c=s.charCodeAt(i); out[2+i*2]=c&255; out[3+i*2]=c>>8; }
   return out;
 }
-
 function parseRiffleText(s){
-  return s.split(',').map(x=>x.trim()).filter(Boolean).map(x=>Number.parseInt(x,10));
+  return s.split(',').map(x=>x.trim()).filter(x=>x.length).map(x=>parseInt(x,10));
 }
-
 function serializeRiffle(nums){ return nums.join(','); }
 
-function readU32(b,p){
-  return ((b[p]<<24)>>>0)|(b[p+1]<<16)|(b[p+2]<<8)|b[p+3];
-}
-function readU16(b,p){ return (b[p]<<8)|b[p+1]; }
+/* ---------- Riffle file layout (reverse-engineered from sample files) ----------
+   Every sample .riffle we inspected is exactly 2944 integers:
+     0..1023     header / song-level fields (index 1 = tempo * 100)
+     1024..1535  PITCH table   (512 slots)
+     1536..2047  DURATION table (512 slots, same index space as pitch)
+     2048..2559  GATE/velocity-ish table (512 slots, same index space as pitch)
+     2560..2943  a 384-slot table whose values repeat in runs of 16 - purpose
+                 unconfirmed (looks display/step related). We do NOT touch it;
+                 it's left exactly as the template had it.
+   Within the pitch/duration/gate tables, "0" is padding and "-1" is a sentinel
+   marking the end of a note-group / end of data. Real files only ever put a
+   real note value in a "data" slot - never in a slot that was 0 or -1 in a
+   working template. Rather than guess the exact bar/beat grammar that decides
+   which slots are data vs padding, we DETECT it directly from whichever
+   template the user picked (see buildSlotMask) and only ever write into the
+   slots that were already "data" slots there. This guarantees the output
+   keeps the same block/delimiter structure as a file Riffler already accepts;
+   we're only ever replacing note content, never re-drawing the skeleton.
+------------------------------------------------------------------------------ */
+const HEADER_LEN = 1024, TABLE_LEN = 512;
+const PITCH_START = HEADER_LEN;
+const DUR_START   = HEADER_LEN + TABLE_LEN;
+const GATE_START  = HEADER_LEN + TABLE_LEN*2;
 
-function readVarLen(bytes,pos,end){
-  let value=0, count=0;
-  while(pos<end && count<4){
-    const b=bytes[pos++];
-    value=(value<<7)|(b&0x7f);
-    count++;
-    if(!(b&0x80)) return [value,pos];
-  }
-  throw new Error('Invalid MIDI variable-length quantity');
+function buildSlotMask(nums){
+  // Returns the indices (relative to the pitch table) that hold real note
+  // data in the template, i.e. every slot where pitch != 0 and pitch != -1.
+  const idx=[];
+  for(let i=0;i<TABLE_LEN;i++){ const v=nums[PITCH_START+i]; if(v!==0 && v!==-1) idx.push(i); }
+  return idx;
 }
 
+function readVarLen(bytes, pos){ let value=0, b; do{ b=bytes[pos++]; value=(value<<7)|(b&0x7f); }while(b&0x80); return [value,pos]; }
 function parseMidi(bytes){
-  const text4=p=>String.fromCharCode(...bytes.slice(p,p+4));
-  if(text4(0)!=='MThd') throw new Error('Not a standard MIDI file.');
-  const hdrLen=readU32(bytes,4);
-  const format=readU16(bytes,8);
-  const trackCount=readU16(bytes,10);
-  const division=readU16(bytes,12);
-  if(division & 0x8000) throw new Error('SMPTE MIDI timing is not supported; use PPQ timing.');
-  const ppq=division;
-  let pos=8+hdrLen;
-  const trackData=[];
-  const allNotes=[];
-  const tempoEvents=[];
-  const timeSignatures=[];
-
-  for(let t=0;t<trackCount;t++){
-    if(pos+8>bytes.length || text4(pos)!=='MTrk') throw new Error('Missing MTrk chunk at track '+(t+1));
-    const len=readU32(bytes,pos+4);
-    pos+=8;
-    const end=pos+len;
-    let tick=0, running=0;
-    const open=new Map();
-    const notes=[];
-    let trackName='';
-
+  function str(pos,n){ return String.fromCharCode(...bytes.slice(pos,pos+n)); }
+  if(str(0,4)!=='MThd') throw new Error('Not a standard MIDI file');
+  const hdrLen=(bytes[4]<<24)|(bytes[5]<<16)|(bytes[6]<<8)|bytes[7];
+  const format=(bytes[8]<<8)|bytes[9], tracks=(bytes[10]<<8)|bytes[11], ppq=(bytes[12]<<8)|bytes[13];
+  let pos=8+hdrLen, notes=[], tempo=500000;
+  for(let t=0;t<tracks;t++){
+    if(str(pos,4)!=='MTrk') throw new Error('Missing MTrk chunk');
+    const len=(bytes[pos+4]<<24)|(bytes[pos+5]<<16)|(bytes[pos+6]<<8)|bytes[pos+7]; pos+=8;
+    const end=pos+len; let tick=0, running=0, open={};
     while(pos<end){
-      let r=readVarLen(bytes,pos,end);
-      tick+=r[0]; pos=r[1];
-      if(pos>=end) break;
-
-      let status=bytes[pos++];
-      if(status<0x80){
-        if(!running) throw new Error('Invalid running status in MIDI track '+(t+1));
-        pos--;
-        status=running;
-      }else if(status<0xF0){
-        running=status;
+      let r=readVarLen(bytes,pos); tick+=r[0]; pos=r[1];
+      let status=bytes[pos++]; if(status<0x80){ pos--; status=running; } else running=status;
+      if(status===0xff){ const type=bytes[pos++]; r=readVarLen(bytes,pos); const l=r[0]; pos=r[1];
+        if(type===0x51 && l===3) tempo=(bytes[pos]<<16)|(bytes[pos+1]<<8)|bytes[pos+2]; pos+=l; continue;
       }
-
-      if(status===0xFF){
-        if(pos>=end) break;
-        const type=bytes[pos++];
-        r=readVarLen(bytes,pos,end); const l=r[0]; pos=r[1];
-        if(pos+l>end) throw new Error('Truncated MIDI meta event.');
-        if(type===0x51 && l===3){
-          const us=(bytes[pos]<<16)|(bytes[pos+1]<<8)|bytes[pos+2];
-          tempoEvents.push({tick,usPerQuarter:us,track:t});
-        }
-        if(type===0x58 && l>=4){
-          timeSignatures.push({tick,numerator:bytes[pos],denominator:2**bytes[pos+1],track:t});
-        }
-        if(type===0x03 && l>0){
-          trackName=new TextDecoder().decode(bytes.slice(pos,pos+l)).replace(/\0/g,'');
-        }
-        pos+=l;
-        continue;
-      }
-
-      if(status===0xF0 || status===0xF7){
-        r=readVarLen(bytes,pos,end); pos=r[1]+r[0];
-        continue;
-      }
-
-      const cmd=status&0xF0, ch=status&0x0F;
-      if(pos>=end) break;
-      const a=bytes[pos++];
-      let b=0;
-      if(cmd!==0xC0 && cmd!==0xD0){
-        if(pos>=end) throw new Error('Truncated MIDI channel event.');
-        b=bytes[pos++];
-      }
-
-      if(cmd===0x90 && b>0){
-        const key=ch+':'+a;
-        if(!open.has(key)) open.set(key,[]);
-        open.get(key).push({tick,note:a,vel:b,ch,track:t});
-      }else if(cmd===0x80 || (cmd===0x90 && b===0)){
-        const key=ch+':'+a;
-        const arr=open.get(key);
-        if(arr && arr.length){
-          const n=arr.shift();
-          n.end=tick;
-          n.dur=Math.max(1,tick-n.tick);
-          notes.push(n);
-          allNotes.push(n);
-        }
+      if(status===0xf0 || status===0xf7){ r=readVarLen(bytes,pos); pos=r[1]+r[0]; continue; }
+      const cmd=status&0xf0, ch=status&0x0f;
+      const a=bytes[pos++], b=(cmd===0xc0||cmd===0xd0)?0:bytes[pos++];
+      if(cmd===0x90 && b>0){ (open[ch+':'+a] ||= []).push({tick, note:a, vel:b, ch}); }
+      else if(cmd===0x80 || (cmd===0x90 && b===0)){
+        const key=ch+':'+a; const arr=open[key]; if(arr&&arr.length){ const n=arr.shift(); n.end=tick; n.dur=tick-n.tick; notes.push(n); }
       }
     }
-
-    for(const arr of open.values()){
-      for(const n of arr){
-        n.end=tick;
-        n.dur=Math.max(1,tick-n.tick);
-        notes.push(n);
-        allNotes.push(n);
-      }
-    }
-
-    notes.sort((a,b)=>a.tick-b.tick || b.note-a.note);
-    trackData.push({index:t,name:trackName||('Track '+(t+1)),notes,endTick:tick});
     pos=end;
   }
-
-  tempoEvents.sort((a,b)=>a.tick-b.tick);
-  timeSignatures.sort((a,b)=>a.tick-b.tick);
-  if(!tempoEvents.length) tempoEvents.push({tick:0,usPerQuarter:500000,track:-1});
-  const firstTempo=tempoEvents.find(x=>x.tick===0)||tempoEvents[0];
-
-  return {
-    format, tracks:trackCount, ppq, division,
-    trackData, notes:allNotes.sort((a,b)=>a.tick-b.tick||b.note-a.note),
-    tempoEvents, timeSignatures,
-    tempo:Math.round(60000000/firstTempo.usPerQuarter),
-    endTick:Math.max(0,...trackData.map(t=>t.endTick))
-  };
-}
-
-function parseDump(text){
-  const notes=[], open=new Map(), reTick=/tick\s+(\d+)/i, reNote=/Note\s+(On|Off)\s+[^(]*\((\d+)\).*?vel\s+(\d+)/i;
-  for(const line of text.split(/\n+/)){
-    const tm=line.match(reTick), nm=line.match(reNote);
-    if(!tm||!nm) continue;
-    const tick=+tm[1], typ=nm[1].toLowerCase(), note=+nm[2], vel=+nm[3];
-    if(typ==='on' && vel>0){
-      if(!open.has(note)) open.set(note,[]);
-      open.get(note).push({tick,note,vel,ch:0,track:0});
-    }else{
-      const arr=open.get(note);
-      if(arr&&arr.length){
-        const n=arr.shift();
-        n.end=tick; n.dur=Math.max(1,tick-n.tick); notes.push(n);
-      }
-    }
-  }
-  for(const arr of open.values()){
-    for(const n of arr){ n.end=n.tick+480; n.dur=480; notes.push(n); }
-  }
-  notes.sort((a,b)=>a.tick-b.tick||b.note-a.note);
-  return {
-    format:'dump',tracks:1,ppq:480,division:480,
-    trackData:[{index:0,name:'Pasted dump',notes,endTick:Math.max(0,...notes.map(n=>n.end||n.tick))}],
-    notes,tempoEvents:[{tick:0,usPerQuarter:500000,track:-1}],
-    timeSignatures:[],tempo:120,endTick:Math.max(0,...notes.map(n=>n.end||n.tick))
-  };
-}
-
-function noteName(n){
-  const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  return names[((n%12)+12)%12]+(Math.floor(n/12)-1);
-}
-
-function chooseNotes(midi){
-  let notes=midi.notes.slice();
-  const mode=$('mode').value;
-
-  if(mode==='track'){
-    notes=(midi.trackData[$('trackSelect').value|0]||midi.trackData[0]).notes.slice();
-  }
-
-  notes=notes.filter(n=>Number.isFinite(n.note) && n.note>=0 && n.note<=127);
-
-  if(mode==='melody' || mode==='lowest'){
-    const byTick=new Map();
-    for(const n of notes){
-      const ex=byTick.get(n.tick);
-      if(!ex || (mode==='melody' ? n.note>ex.note : n.note<ex.note)) byTick.set(n.tick,n);
-    }
-    notes=[...byTick.values()];
-  }
-
   notes.sort((a,b)=>a.tick-b.tick || b.note-a.note);
-  return notes;
+  return {format, tracks, ppq, tempo, notes};
 }
-
-function gridTicks(midi){
-  const ppq=midi.ppq;
-  switch($('grid').value){
-    case 'quarter': return ppq;
-    case 'eighth': return ppq/2;
-    case 'sixteenth': return ppq/4;
-    case 'thirtysecond': return ppq/8;
-    case 'triplet8': return ppq/3;
-    case 'triplet16': return ppq/6;
-    default: return null;
+function parseDump(text){
+  const notes=[], open={};
+  for(const line of text.split(/\n+/)){
+    const tickM=line.match(/tick\s+(\d+)/i); const noteM=line.match(/Note\s+(On|Off)\s+[^\(]*\((\d+)\).*?vel\s+(\d+)/i);
+    if(!tickM||!noteM) continue; const tick=+tickM[1], typ=noteM[1].toLowerCase(), note=+noteM[2], vel=+noteM[3];
+    if(typ==='on' && vel>0){ (open[note] ||= []).push({tick,note,vel}); }
+    else { const arr=open[note]; if(arr&&arr.length){ const n=arr.shift(); n.end=tick; n.dur=tick-n.tick; notes.push(n); } }
   }
+  notes.sort((a,b)=>a.tick-b.tick || b.note-a.note);
+  return {format:'dump', tracks:1, ppq:480, tempo:null, notes};
 }
 
-function detectAutoGrid(midi,notes){
-  if(!notes.length) return midi.ppq/4;
-  const candidates=[midi.ppq/2,midi.ppq/4,midi.ppq/8,midi.ppq/3,midi.ppq/6,midi.ppq];
-  let best=candidates[0], bestScore=Infinity;
-  for(const g of candidates){
-    let err=0;
-    for(const n of notes.slice(0,1000)){
-      const q=Math.round(n.tick/g)*g;
-      err+=Math.abs(n.tick-q);
-    }
-    err/=Math.max(1,Math.min(notes.length,1000));
-    if(err<bestScore){bestScore=err;best=g;}
-  }
-  return best;
-}
-
-function roundToGrid(tick,g){ return Math.max(0,Math.round(tick/g)*g); }
-
-function observedTempo(){
-  if(!state.midi) return 120;
-  if($('tempoMode').value==='template' && state.template) return state.template.tempoBpm;
-  if($('tempoMode').value==='manual') return +$('manualTempo').value;
-  return Math.max(40,Math.min(240,Math.round(state.midi.tempo||120)));
-}
-
-function mapVelocity(v){
-  const mode=$('velocityMode').value;
-  if(mode==='fixed') return Math.round(121+(+$('fixedVelocity').value/127)*6);
-  return Math.max(121,Math.min(126,Math.round(121+(Math.max(1,Math.min(127,v))-1)*5/126)));
-}
-
-function durationValue(ticks,ppq){
-  const quarter=ticks/ppq;
-  const raw=quarter*1000;
-  const allowed=[125,250,375,500,625,750,875,1000,1250,1500,1750,2000];
-  let best=allowed[0],d=Infinity;
-  for(const x of allowed){const e=Math.abs(raw-x);if(e<d){d=e;best=x;}}
-  return Math.max(125,Math.min(2000,best));
-}
-
-function getTemplateStructure(){
-  if(!state.template) throw new Error('Choose a .riffle template first.');
-  const nums=state.template.nums;
-  if(nums.length<2560) throw new Error('Invalid template values count.');
-  return {
-    pitchStart:1024,pitchEnd:1536,
-    durStart:1536,durEnd:2048,
-    velStart:2048,velEnd:2560
-  };
-}
-
-function buildConverted(){
-  if(!state.midi) throw new Error('Load/analyse a MIDI first.');
-  if(!state.template) throw new Error('Choose a valid .riffle template first.');
-
-  const base=state.template.nums.slice();
-  const s=getTemplateStructure();
-  const source=chooseNotes(state.midi);
-  if(!source.length) throw new Error('No usable MIDI notes found.');
-
-  const g=gridTicks(state.midi) || detectAutoGrid(state.midi,source);
-  const transpose=+$('transpose').value||0;
-  const mode=$('mode').value;
-  const repeat=$('repeatPattern').checked;
-
-  const capacity=s.pitchEnd-s.pitchStart; // 512
-
-  let events=[];
-  const usedKeys=new Set();
-
-  for(const n of source){
-    const start=roundToGrid(n.tick,g);
-    const end=Math.max(start+1,roundToGrid(n.end??(n.tick+n.dur||n.tick+g),g));
-    const key=start+':'+n.note+':'+n.track;
-    if(mode!=='all' && usedKeys.has(start)) continue;
-    usedKeys.add(key);
-
-    events.push({
-      source:n,
-      tick:start,
-      durTicks:Math.max(g,end-start),
-      note:n.note+transpose,
-      velocity:n.vel||100
-    });
-  }
-
-  events.sort((a,b)=>a.tick-b.tick || a.note-b.note);
-
-  // Map pitch safely into Riffler bounds without infinite loops
-  for(const e of events){
-    let mappedNote = e.note;
-    while(mappedNote > 76) mappedNote -= 12;
-    while(mappedNote < 18) mappedNote += 12;
-    e.note = Math.max(18, Math.min(76, mappedNote));
-  }
-
-  // Repeat if requested
-  if(repeat && events.length > 0){
-    const original = events.slice();
-    while(events.length < capacity){
-      events = events.concat(original);
-    }
-    events = events.slice(0, capacity);
-  }
-
-  const writtenCount = Math.min(events.length, capacity);
-
-  // Preserve template header data (Do NOT manually override index 0)
-
-  // Clear or assign planes properly
-  for(let i=0; i<capacity; i++){
-    if (i < writtenCount) {
-      const e = events[i];
-      base[s.pitchStart + i] = e.note;
-      base[s.durStart + i] = durationValue(e.durTicks, state.midi.ppq);
-      base[s.velStart + i] = mapVelocity(e.velocity);
-    } else {
-      // Restore -1 markers for unused rests to maintain Riffler layout limits
-      base[s.pitchStart + i] = -1;
-      base[s.durStart + i] = 0;
-      base[s.velStart + i] = 0;
+// Group simultaneous notes (same tick) into chords, then flatten each chord
+// into ordered "steps" (one riffle slot each) according to chordMode.
+// Duration is converted from MIDI ticks into the fixed internal grid unit
+// Riffler's duration table uses: this unit does NOT scale with tempo in the
+// sample files (a "130bpm" file and a "100bpm" file both use round values
+// like 250/500), so we treat it as ticks-per-quarter-note = 1000, independent
+// of the song's actual playback tempo, and snap to the nearest 125.
+function buildSteps(notes, ppq, chordMode){
+  if(notes.length===0) return [];
+  const byTick=new Map();
+  for(const n of notes){ if(n.note<=12) continue; if(!byTick.has(n.tick)) byTick.set(n.tick,[]); byTick.get(n.tick).push(n); }
+  const ticks=[...byTick.keys()].sort((a,b)=>a-b);
+  const steps=[];
+  for(const t of ticks){
+    let chord=byTick.get(t).slice().sort((a,b)=>a.note-b.note);
+    if(chordMode==='top') chord=[chord[chord.length-1]];
+    else if(chordMode==='bottom') chord=[chord[0]];
+    for(const n of chord){
+      const durTicks = n.dur && n.dur>0 ? n.dur : ppq/4; // fallback: a 16th if missing
+      let durUnits = Math.round((durTicks/ppq*1000)/125)*125;
+      if(durUnits<125) durUnits=125;
+      const gate = Math.max(1, Math.min(127, n.vel||100));
+      steps.push({note:n.note, durUnits, gate});
     }
   }
-
-  // Set tempo
-  const bpm=Math.max(40,Math.min(240,Math.round(observedTempo())));
-  base[1]=bpm*100;
-
-  return {
-    nums:base,
-    events:events.slice(0, writtenCount),
-    grid:g,
-    bpm,
-    sourceCount:source.length,
-    capacity
-  };
+  return steps;
 }
 
-function renderTable(events){
-  if(!events.length){$('notesTable').innerHTML='<p class="hint">No events.</p>';return;}
-  const rows=events.slice(0,100).map((e,i)=>`
-    <tr>
-      <td>${i+1}</td>
-      <td>${e.tick}</td>
-      <td>${noteName(e.note)}</td>
-      <td>${e.note}</td>
-      <td>${Math.round(e.durTicks)}</td>
-      <td>${e.velocity}</td>
-      <td>${durationValue(e.durTicks,state.midi.ppq)}</td>
-    </tr>`).join('');
-  $('notesTable').innerHTML=`
-    <table>
-      <tr><th>#</th><th>Grid tick</th><th>Pitch</th><th>MIDI</th><th>Dur ticks</th><th>Vel</th><th>.riffle dur</th></tr>
-      ${rows}
-    </table>
-    ${events.length>100?'<p class="hint">Showing first 100 converted events.</p>':''}
-    <p class="hint">Total converted events: ${events.length}</p>`;
+function renderNotes(steps){
+  if(!steps.length){ $('notesTable').textContent='No notes found.'; return; }
+  const rows=steps.slice(0,80).map((n,i)=>`<tr><td>${i+1}</td><td>${n.note}</td><td>${noteName(n.note)}</td><td>${n.durUnits}</td><td>${n.gate}</td></tr>`).join('');
+  $('notesTable').innerHTML = `<table><tr><th>#</th><th>MIDI</th><th>Name</th><th>Dur (grid units)</th><th>Gate</th></tr>${rows}</table>` + (steps.length>80?`<p class="hint">Showing first 80 of ${steps.length} steps.</p>`:'');
 }
+function noteName(n){ const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; return names[n%12]+(Math.floor(n/12)-1); }
 
-function updateTrackList(){
-  const sel=$('trackSelect');
-  sel.innerHTML='';
-  if(!state.midi){sel.disabled=true;return;}
-  state.midi.trackData.forEach(t=>{
-    const o=document.createElement('option');
-    o.value=t.index;
-    o.textContent=(t.index+1)+'. '+t.name+' — '+t.notes.length+' notes';
-    sel.appendChild(o);
-  });
-  sel.disabled=$('mode').value!=='track';
-}
-
-function updateAnalysis(){
-  if(!state.midi){$('analysis').textContent='No MIDI loaded.';return;}
-  const m=state.midi;
-  const source=chooseNotes(m);
-  const g=gridTicks(m)||detectAutoGrid(m,source);
-  const bars=Math.max(1,m.endTick/(m.ppq*4));
-  const range=source.length?`${noteName(Math.min(...source.map(n=>n.note)))}–${noteName(Math.max(...source.map(n=>n.note)))}`:'—';
-  $('analysis').innerHTML=`
-    <span class="pill">Format ${m.format}</span>
-    <span class="pill">${m.tracks} tracks</span>
-    <span class="pill">PPQ ${m.ppq}</span>
-    <span class="pill">${Math.round(m.tempo)} BPM</span>
-    <span class="pill">${bars.toFixed(2)} bars @ 4/4 equivalent</span>
-    <span class="pill">${source.length} source events (after mode)</span>
-    <span class="pill">Range ${range}</span>
-    <span class="pill">Grid ${Math.round(g)} ticks</span>
-  `;
-}
-
-async function loadTemplate(){
-  const f=$('templateFile').files[0];
-  if(!f)return;
-  const b=await readFileBytes(f);
-  const text=readTextUTF16(b);
-  const nums=parseRiffleText(text);
-  if(nums.length<2560) throw new Error('Template does not look like a Riffler .riffle integer file.');
-  state.template={name:f.name,nums,tempoBpm:(nums[1]||10000)/100};
-  log(`Template loaded: ${f.name}\nValues: ${nums.length}\nObserved tempo: ${state.template.tempoBpm} BPM`);
-}
-
-async function loadMidi(){
+async function loadInputs(){
+  const tf=$('templateFile').files[0]; if(!tf) throw new Error('Please choose a valid .riffle template first.');
+  const tb=await readFileBytes(tf);
+  const templateText=readTextUTF16(tb);
+  const templateNums=parseRiffleText(templateText);
+  if(templateNums.length<HEADER_LEN+TABLE_LEN*3) throw new Error('Template does not look like a valid .riffle file (too short).');
+  let midi=null;
   const mf=$('midiFile').files[0];
-  if(mf){
-    state.midi=parseMidi(await readFileBytes(mf));
-  }else if($('eventDump').value.trim()){
-    state.midi=parseDump($('eventDump').value);
-  }else{
-    throw new Error('Choose a MIDI file or paste an event dump.');
-  }
-  updateTrackList();
-  updateAnalysis();
-  $('convertBtn').disabled=false;
-  log(`MIDI loaded.\nFormat: ${state.midi.format}\nTracks: ${state.midi.tracks}\nPPQ: ${state.midi.ppq}\nTempo: ${state.midi.tempo} BPM\nNotes: ${state.midi.notes.length}`);
+  if(mf){ midi=parseMidi(await readFileBytes(mf)); }
+  else if($('eventDump').value.trim()) midi=parseDump($('eventDump').value);
+  else throw new Error('Please choose a MIDI file or paste a MIDI event dump.');
+  const steps=buildSteps(midi.notes, midi.ppq||480, $('chordMode').value);
+  if(!steps.length) throw new Error('No usable notes found in the MIDI.');
+  renderNotes(steps);
+  const slotIdx=buildSlotMask(templateNums);
+  return {templateNums, midi, steps, slotIdx};
 }
 
-async function analyse(){
-  try{
-    await loadMidi();
-  }catch(e){log('Error: '+e.message);}
+function patchRiffle(templateNums, steps, slotIdx, offset){
+  const nums=templateNums.slice();
+  const n=Math.min(steps.length, slotIdx.length);
+  for(let i=0;i<n;i++){
+    const slot=slotIdx[i];
+    nums[PITCH_START+slot]=steps[i].note+offset;
+    nums[DUR_START+slot]=steps[i].durUnits;
+    nums[GATE_START+slot]=steps[i].gate;
+  }
+  // Any leftover template data-slots we didn't have MIDI notes for are left
+  // exactly as the template had them (keeps the structure valid; just means
+  // the tail of the pattern still plays the template's own notes).
+  return {nums, used:n, capacity:slotIdx.length};
 }
 
 async function preview(){
   try{
-    if(!state.midi) await loadMidi();
-    if(!state.template) await loadTemplate();
-    const result=buildConverted();
-    state.preview=result;
-    renderTable(result.events);
-    log(`Preview generated successfully.`);
-  }catch(e){log('Error: '+e.message);}
+    const {midi,steps,slotIdx}=await loadInputs();
+    log(`MIDI loaded.\nFormat: ${midi.format}\nTracks: ${midi.tracks}\nPPQ: ${midi.ppq}\nExtracted steps: ${steps.length}\nTemplate capacity: ${slotIdx.length} note slots\nFirst notes: ${steps.slice(0,24).map(n=>noteName(n.note)).join(' ')}` +
+        (steps.length>slotIdx.length? `\n\nWarning: this template only has ${slotIdx.length} note slots - ${steps.length-slotIdx.length} trailing note(s) will be dropped. Pick a longer/denser template for the full MIDI.`:''));
+  }catch(e){ log('Error: '+e.message); }
+}
+async function saveBlob(blob, filename){
+  // iOS Safari routinely ignores the <a download> attribute for blob URLs and
+  // just opens/previews the file instead of saving it. The reliable path on
+  // iOS is the Web Share API with a real File object, which lets the user
+  // pick "Save to Files". We try that first and only fall back to the old
+  // anchor-click approach (which works fine on desktop browsers) if sharing
+  // isn't available.
+  const file = new File([blob], filename, {type:'application/octet-stream'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file], title:filename});
+      return 'shared';
+    }catch(err){
+      // user cancelled the share sheet - don't treat as a hard failure,
+      // fall through to the manual link instead of erroring out.
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; a.textContent='Tap here to save '+filename;
+  a.style.display='inline-block'; a.style.margin='8px 0'; a.style.fontWeight='700';
+  const holder=$('downloadLink'); holder.innerHTML=''; holder.appendChild(a);
+  a.click();
+  return 'link';
 }
 
 async function convert(){
   try{
-    if (!state.midi) {
-      if ($('midiFile').files.length || $('eventDump').value.trim()) {
-        await loadMidi();
-      }
-    }
-    if (!state.midi) throw new Error('No MIDI loaded.');
-    if (!state.template) await loadTemplate();
-
-    const result = buildConverted();
-    state.preview = result;
-    renderTable(result.events);
-    const text = serializeRiffle(result.nums);
-    const blob = new Blob([encodeUTF16LEWithBOM(text)], {type: 'application/octet-stream'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'converted_from_midi.riffle';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-    log(`Converted and downloaded successfully.`);
-  } catch(e){ log('Error: '+e.message); }
+    const {templateNums,midi,steps,slotIdx}=await loadInputs();
+    const offset=+$('pitchOffset').value;
+    const {nums,used,capacity}=patchRiffle(templateNums, steps, slotIdx, offset);
+    const text=serializeRiffle(nums);
+    const blob=new Blob([encodeUTF16LEWithBOM(text)], {type:'application/octet-stream'});
+    const how = await saveBlob(blob, 'converted_from_midi.riffle');
+    const base = `Template note slots: ${capacity}\nSteps written: ${used}${steps.length>capacity?` (dropped ${steps.length-capacity} - template too short)`:''}\nPitch mapping: MIDI ${offset>=0?'+':''}${offset}\nPitch, duration and gate tables were all updated together; the template's own block/delimiter layout was preserved.`;
+    if(how==='shared') log(`Converted. Choose "Save to Files" in the share sheet to keep the .riffle.\n\n${base}`);
+    else log(`Converted.\nIf the file opened in a preview instead of downloading, use the "Tap here to save" link below and choose Download/Save to Files from there (or long-press it and pick "Download Linked File").\n\n${base}`);
+  }catch(e){ log('Error: '+e.message); }
 }
-
-$('templateFile').addEventListener('change',async()=>{
-  try{await loadTemplate();}catch(e){log('Error: '+e.message);}
-});
-$('midiFile').addEventListener('change',async()=>{
-  try{
-    await loadMidi();
-  }catch(e){
-    state.midi=null;
-    $('convertBtn').disabled=true;
-    log('Error: '+e.message);
-  }
-});
-$('eventDump').addEventListener('input',()=>{
-  if(!$('midiFile').files.length && $('eventDump').value.trim()) $('convertBtn').disabled=false;
-});
-$('analyseBtn').addEventListener('click',analyse);
-$('previewBtn').addEventListener('click',preview);
-$('convertBtn').addEventListener('click',convert);
-$('mode').addEventListener('change',()=>{updateTrackList();if(state.midi)updateAnalysis();});
-$('trackSelect').addEventListener('change',()=>{if(state.midi)updateAnalysis();});
-$('grid').addEventListener('change',()=>{if(state.midi)updateAnalysis();});
-$('tempoMode').addEventListener('change',()=>{
-  $('manualTempo').disabled=$('tempoMode').value!=='manual';
-});
-$('velocityMode').addEventListener('change',()=>{
-  $('fixedVelocity').disabled=$('velocityMode').value!=='fixed';
-});
-$('fixedVelocity').addEventListener('input',()=>{
-  $('fixedVelocityValue').textContent=$('fixedVelocity').value;
-});
+$('previewBtn').addEventListener('click', preview);
+$('convertBtn').addEventListener('click', convert);
+$('templateFile').addEventListener('change', ()=>{ const f=$('templateFile').files[0]; if(f) log('Template selected: '+f.name+'\nNow choose a MIDI file or paste an event dump.'); });
+$('midiFile').addEventListener('change', ()=>{ const f=$('midiFile').files[0]; if(f) log('MIDI selected: '+f.name+'\nTap Preview or Convert.'); });
 </script>
 </body>
 </html>
