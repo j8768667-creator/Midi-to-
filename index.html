@@ -245,7 +245,7 @@ function buildSteps(notes, ppq, chordMode, selectedTracks){
     if(!byTick.has(n.tick)) byTick.set(n.tick,[]); byTick.get(n.tick).push(n);
   }
   const ticks=[...byTick.keys()].sort((a,b)=>a-b);
-  const steps=[];
+  const raw=[];
   for(const t of ticks){
     let chord=byTick.get(t).slice().sort((a,b)=>a.note-b.note);
     if(chordMode==='top') chord=[chord[chord.length-1]];
@@ -255,7 +255,26 @@ function buildSteps(notes, ppq, chordMode, selectedTracks){
       let durUnits = Math.round((durTicks/ppq*1000)/125)*125;
       if(durUnits<125) durUnits=125;
       const gate = Math.max(1, Math.min(127, n.vel||100));
-      steps.push({note:n.note, durUnits, gate});
+      raw.push({note:n.note, durUnits, gate});
+    }
+  }
+  // Merge runs of the SAME pitch played back-to-back into one longer note.
+  // This matters most in 'top note' mode: a rolled/tremolo chord repeats its
+  // top voice on every strum, which produces long runs of an identical pitch
+  // if written as separate slots (we measured 6-11 in a row on real content).
+  // Every genuine Riffler-authored file we've inspected never exceeds a run
+  // of 2 identical consecutive pitches - long identical runs don't occur in
+  // real content, so this represents a static/held note that should be one
+  // longer note, not many redundant re-triggers of the same pitch.
+  const MAX_MERGED_DUR = 8000;
+  const steps=[];
+  for(const s of raw){
+    const prev = steps[steps.length-1];
+    if(prev && prev.note===s.note && prev.durUnits+s.durUnits<=MAX_MERGED_DUR){
+      prev.durUnits += s.durUnits;
+      prev.gate = Math.max(prev.gate, s.gate);
+    } else {
+      steps.push({...s});
     }
   }
   return steps;
