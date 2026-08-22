@@ -56,6 +56,19 @@
   </div>
 </div>
 
+<div class="card row">
+  <div>
+    <label>Note capacity</label>
+    <select id="maxSlots">
+      <option value="128" selected>128 (known to produce sound)</option>
+      <option value="256">256 (untested at this size)</option>
+      <option value="400">400 (untested at this size)</option>
+    </select>
+    <div class="hint">Caps how many notes get written. Starting conservative since larger, structurally-different files have produced silence in Flow before - raise this only if 128 plays correctly and you need more notes.</div>
+  </div>
+  <div></div>
+</div>
+
 <div class="card">
   <button id="convertBtn">Convert and download .riffle</button>
   <button class="secondary" id="previewBtn">Preview extracted notes</button>
@@ -98,19 +111,25 @@ function serializeRiffle(nums){ return nums.join(','); }
      1536..2047  DURATION table (512 slots, same index space as pitch)
      2048..2559  GATE/velocity-ish table (512 slots, same index space as pitch)
      2560..2943  a 384-slot table whose values repeat in runs of 16 - purpose
-                 unconfirmed (looks display/step related). We do NOT touch it;
-                 it's left exactly as the template had it.
-   Within the pitch/duration/gate tables, "0" is padding and "-1" is a sentinel.
-   In every real file we inspected, the note-slots form a REPEATING block:
-   a fixed run of data slots, then a fixed run of zero-padding, over and over,
-   ending in a short "-1,0,-1,0,0,0,0"-style tail. Rather than only refilling
-   whatever block layout one particular template happened to contain (which
-   silently truncates any MIDI longer than that template), we DETECT the
-   repeating unit (data-run length + pad-run length) from the template and
-   TILE it as many times as needed to fit the MIDI, up to the ~512-slot
-   ceiling the format physically allows. This is still evidence-based (we
-   never invent a layout the format hasn't shown us) but no longer capped by
-   one example file's length.
+                 unconfirmed. We do NOT touch it; left as the template had it.
+
+   CORRECTION from real-world A/B testing: an earlier version of this tool
+   tried to preserve/tile the "9 data slots then a zero" block pattern seen
+   in hand-authored template files, on the theory that Riffler needed that
+   exact grammar. Real testing showed the opposite: a file whose duration and
+   gate tables were just stale template leftovers (completely disconnected
+   from the newly-written pitch data) but whose PITCH table was one dense,
+   uninterrupted run of notes sounded closer to the source MIDI than our
+   "structurally faithful" block-tiled version - and the block-tiled version
+   produced silence in Riffler Flow specifically. So dense, gap-free packing
+   appears to be what these apps actually expect; the "0 between every N
+   notes" pattern in template files reflects THOSE files' own musical
+   content (real rests in that riff), not a required delimiter format.
+   We now write pitch/duration/gate as a single dense run - one slot per
+   note, no artificial rests inserted - all three kept in sync for every
+   note (which the very first version of this tool never did), then pad
+   with a short -1 run and finally 0s, matching what every real file does
+   at the point its active data ends.
 ------------------------------------------------------------------------------ */
 const HEADER_LEN = 1024, TABLE_LEN = 512;
 const PITCH_START = HEADER_LEN;
@@ -118,61 +137,22 @@ const DUR_START   = HEADER_LEN + TABLE_LEN;
 const GATE_START  = HEADER_LEN + TABLE_LEN*2;
 
 // A known-good template (E m7, 93bpm) baked in so template upload is optional.
-// It has a clean, regular block structure (9 data slots + 1 zero, repeated),
-// which the tiling logic below re-derives and re-tiles for any MIDI length.
 const DEFAULT_TEMPLATE = "200,9300,8,0,69,0,0,1,0,0,0,3,1,1,4,5,2,1,1,7,0,0,0,0,0,0,0,0,0,1,0,4000,4000,4000,4000,4000,4000,4000,4000,0,0,0,81,78,13,69,0,8,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,52,74,64,52,64,74,64,67,64,0,66,69,66,69,66,69,50,66,50,0,43,59,54,43,54,59,54,55,54,0,48,52,48,52,48,60,50,66,50,0,52,74,64,52,64,74,64,67,64,0,66,69,66,69,66,69,50,66,50,0,43,59,54,43,54,59,54,55,54,0,48,52,48,52,48,60,50,66,50,0,-1,0,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,-1,0,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,126,122,124,126,124,122,124,123,124,0,124,123,124,123,124,123,126,124,126,0,126,122,124,126,124,122,124,123,124,0,126,124,126,124,126,122,126,124,126,0,126,122,124,126,124,122,124,123,124,0,124,123,124,123,124,123,126,124,126,0,126,122,124,126,124,122,124,123,124,0,126,124,126,124,126,122,126,124,126,0,-1,0,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,69,69,69,69,69,69,69,69,68,68,68,68,68,68,68,68,71,71,71,71,71,71,71,71,67,67,67,67,67,67,68,68,69,69,69,69,69,69,69,69,68,68,68,68,68,68,68,68,71,71,71,71,71,71,71,71,67,67,67,67,67,67,68,68,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,88,69,69,69,69,69,69,69,69,68,68,68,68,68,68,68,68,71,71,71,71,71,71,71,71,67,67,67,67,67,67,68,68,69,69,69,69,69,69,69,69,68,68,68,68,68,68,68,68,71,71,71,71,71,71,71,71,67,67,67,67,67,67,68,68,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,42,42,42,42,42,42,42,42,32,32,32,32,32,32,32,32,41,41,41,41,41,41,41,41,32,32,32,32,32,32,32,32,42,42,42,42,42,42,42,42,32,32,32,32,32,32,32,32,41,41,41,41,41,41,41,41,32,32,32,32,32,32,32,32,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
 
-function detectBlockUnit(pitchTable){
-  // Find the repeating (data-run, pad-run) unit before the first -1 sentinel,
-  // and capture the template's own closing tail verbatim so we can reuse it.
-  let firstNeg1 = pitchTable.indexOf(-1);
-  if(firstNeg1===-1) firstNeg1 = pitchTable.length;
-  let i=0; const dataRuns=[], padRuns=[];
-  while(i<firstNeg1){
-    let j=i; const isData = pitchTable[i]!==0;
-    while(j<firstNeg1 && (pitchTable[j]!==0)===isData) j++;
-    (isData?dataRuns:padRuns).push(j-i);
-    i=j;
-  }
-  const mode = arr => { if(!arr.length) return 1; const m={}; let best=arr[0],bc=0; for(const v of arr){ m[v]=(m[v]||0)+1; if(m[v]>bc){bc=m[v];best=v;} } return best; };
-  // Skip the first data run when picking the mode - an intro/pickup block is
-  // sometimes a different length than the recurring chord blocks.
-  const dataLen = mode(dataRuns.length>1 ? dataRuns.slice(1) : dataRuns) || 1;
-  const padLen  = mode(padRuns) || 1;
-  // Tail = from the first -1 up to (not including) the first run of 4+ zeros,
-  // i.e. the template's own "-1,0,-1,0,..." closing sequence.
-  let tailEnd = firstNeg1;
-  while(tailEnd < pitchTable.length &&
-        !(pitchTable[tailEnd]===0 && pitchTable[tailEnd+1]===0 && pitchTable[tailEnd+2]===0 && pitchTable[tailEnd+3]===0)){
-    tailEnd++;
-  }
-  const tail = pitchTable.slice(firstNeg1, Math.min(tailEnd+1, pitchTable.length));
-  return {dataLen, padLen, tail};
-}
-
-function buildTiledTables(templateNums, steps, offset){
-  const pitchTemplate = templateNums.slice(PITCH_START, PITCH_START+TABLE_LEN);
-  const {dataLen, padLen, tail} = detectBlockUnit(pitchTemplate);
-  const unitLen = dataLen+padLen;
-  const maxBlocks = Math.max(1, Math.floor((TABLE_LEN - tail.length) / unitLen));
-  const capacity = maxBlocks*dataLen;
-  const used = Math.min(steps.length, capacity);
-  const blocksNeeded = Math.max(1, Math.ceil(used/dataLen));
-
+function buildDenseTables(steps, offset, maxSlots){
+  const cap = Math.min(maxSlots, TABLE_LEN - 8); // leave a little room for the -1 tail
+  const used = Math.min(steps.length, cap);
   const pitch=new Array(TABLE_LEN).fill(0), dur=new Array(TABLE_LEN).fill(0), gate=new Array(TABLE_LEN).fill(0);
-  let si=0, pos=0;
-  for(let b=0; b<blocksNeeded; b++){
-    for(let k=0; k<dataLen; k++){
-      if(si<used){ pitch[pos]=steps[si].note+offset; dur[pos]=steps[si].durUnits; gate[pos]=steps[si].gate; si++; }
-      pos++;
-    }
-    pos += padLen;
+  for(let i=0;i<used;i++){
+    pitch[i]=steps[i].note+offset;
+    dur[i]=steps[i].durUnits;
+    gate[i]=steps[i].gate;
   }
-  for(let t=0; t<tail.length && pos<TABLE_LEN; t++, pos++){
-    pitch[pos]=tail[t];
-    if(tail[t]===-1){ dur[pos]=-1; gate[pos]=-1; }
-  }
-  return {pitch, dur, gate, capacity, used, dataLen, padLen};
+  // Every real file we've inspected marks the end of active data with -1,
+  // never leaves it as a plain 0 - so we do the same right after the notes.
+  let pos=used;
+  for(let k=0;k<2 && pos<TABLE_LEN;k++,pos++){ pitch[pos]=-1; dur[pos]=-1; gate[pos]=-1; }
+  return {pitch, dur, gate, capacity:cap, used};
 }
 
 function readVarLen(bytes, pos){ let value=0, b; do{ b=bytes[pos++]; value=(value<<7)|(b&0x7f); }while(b&0x80); return [value,pos]; }
@@ -273,9 +253,9 @@ async function loadInputs(){
   return {templateNums, midi, steps};
 }
 
-function patchRiffle(templateNums, midi, steps, offset){
+function patchRiffle(templateNums, midi, steps, offset, maxSlots){
   const nums=templateNums.slice();
-  const {pitch, dur, gate, capacity, used} = buildTiledTables(templateNums, steps, offset);
+  const {pitch, dur, gate, capacity, used} = buildDenseTables(steps, offset, maxSlots);
   for(let i=0;i<TABLE_LEN;i++){
     nums[PITCH_START+i]=pitch[i];
     nums[DUR_START+i]=dur[i];
@@ -293,14 +273,12 @@ function patchRiffle(templateNums, midi, steps, offset){
 
 async function preview(){
   try{
-    const {templateNums,midi,steps}=await loadInputs();
-    const pitchTemplate = templateNums.slice(PITCH_START, PITCH_START+TABLE_LEN);
-    const {dataLen, padLen} = detectBlockUnit(pitchTemplate);
-    const maxBlocks = Math.max(1, Math.floor((TABLE_LEN - 8) / (dataLen+padLen)));
-    const capacity = maxBlocks*dataLen;
+    const {midi,steps}=await loadInputs();
+    const maxSlots=+$('maxSlots').value;
+    const capacity=Math.min(maxSlots, TABLE_LEN-8);
     const bpm = midi.tempo ? Math.round(60000000/midi.tempo) : null;
-    log(`MIDI loaded.\nFormat: ${midi.format}\nTracks: ${midi.tracks}\nPPQ: ${midi.ppq}${bpm?`\nTempo: ${bpm} bpm (will be written to output)`:''}\nExtracted steps: ${steps.length}\nDetected block pattern: ${dataLen} notes + ${padLen} pad, retiled capacity: ${capacity} note slots\nFirst notes: ${steps.slice(0,24).map(n=>noteName(n.note)).join(' ')}` +
-        (steps.length>capacity? `\n\nWarning: even after retiling, this MIDI has ${steps.length-capacity} more notes than the format's slot ceiling allows - trailing note(s) will be dropped.`:''));
+    log(`MIDI loaded.\nFormat: ${midi.format}\nTracks: ${midi.tracks}\nPPQ: ${midi.ppq}${bpm?`\nTempo: ${bpm} bpm (will be written to output)`:''}\nExtracted steps: ${steps.length}\nNote capacity setting: ${capacity} slots\nFirst notes: ${steps.slice(0,24).map(n=>noteName(n.note)).join(' ')}` +
+        (steps.length>capacity? `\n\nWarning: this MIDI has ${steps.length-capacity} more notes than the current capacity setting - trailing note(s) will be dropped. Try a higher "Note capacity" setting.`:''));
   }catch(e){ log('Error: '+e.message); }
 }
 async function saveBlob(blob, filename){
@@ -332,11 +310,12 @@ async function convert(){
   try{
     const {templateNums,midi,steps}=await loadInputs();
     const offset=+$('pitchOffset').value;
-    const {nums,used,capacity}=patchRiffle(templateNums, midi, steps, offset);
+    const maxSlots=+$('maxSlots').value;
+    const {nums,used,capacity}=patchRiffle(templateNums, midi, steps, offset, maxSlots);
     const text=serializeRiffle(nums);
     const blob=new Blob([encodeUTF16LEWithBOM(text)], {type:'application/octet-stream'});
     const how = await saveBlob(blob, 'converted_from_midi.riffle');
-    const base = `Retiled note capacity: ${capacity} slots\nSteps written: ${used}${steps.length>capacity?` (dropped ${steps.length-capacity} - MIDI exceeds the format's slot ceiling)`:''}\nPitch mapping: MIDI ${offset>=0?'+':''}${offset}\nTempo, pitch, duration and gate were all synced together.`;
+    const base = `Note capacity: ${capacity} slots\nSteps written: ${used}${steps.length>capacity?` (dropped ${steps.length-capacity} - try a higher "Note capacity" setting)`:''}\nPitch mapping: MIDI ${offset>=0?'+':''}${offset}\nPitch, duration and gate were written as one dense run (no gaps) and kept in sync; tempo synced from the MIDI.`;
     if(how==='shared') log(`Converted. Choose "Save to Files" in the share sheet to keep the .riffle.\n\n${base}`);
     else log(`Converted.\nIf the file opened in a preview instead of downloading, use the "Tap here to save" link below and choose Download/Save to Files from there (or long-press it and pick "Download Linked File").\n\n${base}`);
   }catch(e){ log('Error: '+e.message); }
