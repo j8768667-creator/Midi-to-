@@ -441,7 +441,18 @@ async function convert(){
 $('previewBtn').addEventListener('click', preview);
 $('convertBtn').addEventListener('click', convert);
 $('templateFile').addEventListener('change', ()=>{ const f=$('templateFile').files[0]; if(f) log('Template selected: '+f.name+'\nNow choose a MIDI file or paste an event dump.'); });
-$('midiFile').addEventListener('change', ()=>{ const f=$('midiFile').files[0]; if(f) log('MIDI selected: '+f.name+'\nTap Preview or Convert.'); });
+$('midiFile').addEventListener('change', async ()=>{
+  const f=$('midiFile').files[0]; if(!f) return;
+  log('MIDI selected: '+f.name+'\nParsing...');
+  try{
+    const midi=parseMidi(await readFileBytes(f));
+    const fileKey = f.name+':'+f.size+':'+f.lastModified;
+    renderTrackPicker(midi); lastMidiFileKey = fileKey;
+    log('MIDI selected: '+f.name+'\n'+(document.querySelectorAll('.trackCheck').length? 'Multiple instruments found - check the list above to pick which ones to include, then tap Preview or Convert.':'Tap Preview or Convert.'));
+  }catch(e){
+    log('MIDI selected: '+f.name+'\nCould not parse it yet ('+e.message+') - tap Preview for details.');
+  }
+});
 </script>
 </body>
 </html>
