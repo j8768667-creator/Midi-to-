@@ -228,18 +228,21 @@ function parseDump(text){
 // channel regardless of which track the user picks.
 const DRUM_CHANNEL = 9;
 
-function summarizeTracks(notes){
-  const byTrack = new Map();
+function summarizeVoices(notes){
+  // A "voice" is one (track, channel) pair. Most MIDI files put one
+  // instrument per track, but format-0 files (single track, e.g. many full-
+  // band transcriptions) put every instrument in ONE track and separate them
+  // only by channel - so we split by both, not just by track, or a format-0
+  // file with 15 different instruments merged together would show up as a
+  // single unpickable "track" with no way to isolate just one instrument.
+  const byVoice = new Map();
   for(const n of notes){
-    if(!byTrack.has(n.track)) byTrack.set(n.track, {channels:new Set(), min:999, max:0, count:0, isDrum:false});
-    const t = byTrack.get(n.track);
-    t.channels.add(n.ch); t.min=Math.min(t.min,n.note); t.max=Math.max(t.max,n.note); t.count++;
-    if(n.ch===DRUM_CHANNEL) t.isDrum=true;
+    const key = n.track+':'+n.ch;
+    if(!byVoice.has(key)) byVoice.set(key, {track:n.track, ch:n.ch, min:999, max:0, count:0, isDrum:n.ch===DRUM_CHANNEL});
+    const v = byVoice.get(key);
+    v.min=Math.min(v.min,n.note); v.max=Math.max(v.max,n.note); v.count++;
   }
-  return [...byTrack.entries()].sort((a,b)=>a[0]-b[0]).map(([track,info])=>({
-    track, count:info.count, min:info.min, max:info.max, isDrum:info.isDrum,
-    channels:[...info.channels]
-  }));
+  return [...byVoice.values()].sort((a,b)=> a.track-b.track || a.ch-b.ch);
 }
 
 // Group simultaneous notes (same tick) into chords, then flatten each chord
@@ -249,13 +252,13 @@ function summarizeTracks(notes){
 // sample files (a "130bpm" file and a "100bpm" file both use round values
 // like 250/500), so we treat it as ticks-per-quarter-note = 1000, independent
 // of the song's actual playback tempo, and snap to the nearest 125.
-function buildSteps(notes, ppq, chordMode, selectedTracks){
+function buildSteps(notes, ppq, chordMode, selectedVoices){
   if(notes.length===0) return [];
   const byTick=new Map();
   for(const n of notes){
     if(n.note<=12) continue;
     if(n.ch===DRUM_CHANNEL) continue; // never treat drum hits as pitches
-    if(selectedTracks && !selectedTracks.has(n.track)) continue;
+    if(selectedVoices && !selectedVoices.has(n.track+':'+n.ch)) continue;
     if(!byTick.has(n.tick)) byTick.set(n.tick,[]); byTick.get(n.tick).push(n);
   }
   const ticks=[...byTick.keys()].sort((a,b)=>a-b);
@@ -295,23 +298,25 @@ function buildSteps(notes, ppq, chordMode, selectedTracks){
 }
 
 function renderTrackPicker(midi){
-  const summary = summarizeTracks(midi.notes);
+  const summary = summarizeVoices(midi.notes);
   const holder = $('trackPicker');
   if(summary.length<=1){ holder.innerHTML=''; return; }
-  holder.innerHTML = '<label>Tracks to include</label>' + summary.map(t=>{
-    const label = t.isDrum ? `Track ${t.track} - drum channel, excluded automatically (${t.count} hits)`
-                            : `Track ${t.track} - ch ${t.channels.join(',')}, ${t.count} notes, range ${noteName(t.min)}-${noteName(t.max)}`;
-    const checked = t.isDrum ? '' : 'checked';
-    const disabled = t.isDrum ? 'disabled' : '';
-    return `<div><label style="font-weight:400"><input type="checkbox" class="trackCheck" value="${t.track}" ${checked} ${disabled} style="width:auto;display:inline;margin-right:8px"/>${label}</label></div>`;
-  }).join('') + '<div class="hint">A MIDI file with several tracks (piano, bass, drums...) gets flattened together by default, which usually sounds like noise. Uncheck tracks you don\'t want in the riff - e.g. keep just the lead or bass line.</div>';
+  const multiTrack = new Set(summary.map(v=>v.track)).size>1;
+  holder.innerHTML = '<label>Instruments to include</label>' + summary.map(v=>{
+    const label = v.isDrum
+      ? `${multiTrack?`Track ${v.track}, `:''}Ch ${v.ch} - drum channel, excluded automatically (${v.count} hits)`
+      : `${multiTrack?`Track ${v.track}, `:''}Ch ${v.ch} - ${v.count} notes, range ${noteName(v.min)}-${noteName(v.max)}`;
+    const checked = v.isDrum ? '' : 'checked';
+    const disabled = v.isDrum ? 'disabled' : '';
+    return `<div><label style="font-weight:400"><input type="checkbox" class="trackCheck" value="${v.track}:${v.ch}" ${checked} ${disabled} style="width:auto;display:inline;margin-right:8px"/>${label}</label></div>`;
+  }).join('') + '<div class="hint">A MIDI file with several instruments (piano, bass, drums...) gets flattened together by default, which usually sounds like noise. Uncheck the ones you don\'t want in the riff - e.g. keep just the lead guitar or bass line. Works even when every instrument is packed into a single MIDI track, separated only by channel.</div>';
 }
 
 function getSelectedTracks(){
   const boxes = document.querySelectorAll('.trackCheck');
-  if(!boxes.length) return null; // single-track MIDI, nothing to filter
+  if(!boxes.length) return null; // single-instrument MIDI, nothing to filter
   const set = new Set();
-  boxes.forEach(b=>{ if(b.checked) set.add(+b.value); });
+  boxes.forEach(b=>{ if(b.checked) set.add(b.value); }); // "track:ch" strings
   return set;
 }
 
