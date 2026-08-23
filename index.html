@@ -143,7 +143,7 @@ const DEFAULT_TEMPLATE = "200,9300,8,0,69,0,0,1,0,0,0,3,1,1,4,5,2,1,1,7,0,0,0,0,
 function buildDenseTables(steps, offset, maxSlots){
   const cap = Math.min(maxSlots, TABLE_LEN - 8); // leave a little room for the -1 tail
   const used = Math.min(steps.length, cap);
-  const pitch=new Array(TABLE_LEN).fill(0), dur=new Array(TABLE_LEN).fill(0), gate=new Array(TABLE_LEN).fill(0);
+  const pitch=new Array(TABLE_LEN).fill(null); // null = "leave template's value alone"
   for(let i=0;i<used;i++){
     // Riffler itself re-saved a converted file and octave-shifted every note
     // >=65 down by 12 (100% consistent - 15/15 out-of-range notes, zero
@@ -154,14 +154,23 @@ function buildDenseTables(steps, offset, maxSlots){
     while(note>64) note-=12;
     while(note<0) note+=12;
     pitch[i]=note;
-    dur[i]=steps[i].durUnits;
-    gate[i]=steps[i].gate;
   }
-  // Every real file we've inspected marks the end of active data with -1,
-  // never leaves it as a plain 0 - so we do the same right after the notes.
+  // CORRECTION from direct A/B testing against the original, unmodified
+  // version of this tool: that version never touched duration or gate at
+  // all - it only overwrote pitch, leaving duration/gate exactly as
+  // inherited from the template. Side by side, THAT version played across
+  // the full pattern (multiple chord regions) in both apps; our version,
+  // which computes and writes real per-note duration/gate, reliably stopped
+  // after the first few notes. The template's duration table carries its
+  // own periodic zero-delimiter pattern (e.g. a zero every 9th slot) that
+  // looks like it marks per-chord-region boundaries for playback - and by
+  // computing real durations everywhere, we were overwriting those markers.
+  // So: duration and gate are now left completely untouched, matching what
+  // actually plays correctly. Every real file we've inspected marks the end
+  // of active pitch data with -1, so we still do that for pitch specifically.
   let pos=used;
-  for(let k=0;k<2 && pos<TABLE_LEN;k++,pos++){ pitch[pos]=-1; dur[pos]=-1; gate[pos]=-1; }
-  return {pitch, dur, gate, capacity:cap, used};
+  for(let k=0;k<2 && pos<TABLE_LEN;k++,pos++){ pitch[pos]=-1; }
+  return {pitch, capacity:cap, used};
 }
 
 function readVarLen(bytes, pos){ let value=0, b; do{ b=bytes[pos++]; value=(value<<7)|(b&0x7f); }while(b&0x80); return [value,pos]; }
@@ -338,11 +347,11 @@ let lastMidiFileKey = null;
 
 function patchRiffle(templateNums, midi, steps, offset, maxSlots){
   const nums=templateNums.slice();
-  const {pitch, dur, gate, capacity, used} = buildDenseTables(steps, offset, maxSlots);
+  const {pitch, capacity, used} = buildDenseTables(steps, offset, maxSlots);
+  // Only pitch gets overwritten. Duration and gate are left exactly as the
+  // template provides them - see the comment in buildDenseTables for why.
   for(let i=0;i<TABLE_LEN;i++){
-    nums[PITCH_START+i]=pitch[i];
-    nums[DUR_START+i]=dur[i];
-    nums[GATE_START+i]=gate[i];
+    if(pitch[i]!==null) nums[PITCH_START+i]=pitch[i];
   }
   // Sync the header's tempo field (index 1 = bpm * 100 in every sample file)
   // to the MIDI's actual tempo, so playback speed matches the source instead
