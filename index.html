@@ -5,27 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>MIDI to Riffer (.riffle) Converter</title>
+  <title>MIDI to Audiomodern Riffer Transposer</title>
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
-      user-select: none;
       -webkit-user-select: none;
+      user-select: none;
       -webkit-touch-callout: none;
     }
 
     :root {
-      --bg: #0f1115;
-      --panel: #16181e;
-      --panel-border: #262933;
+      --bg: #0d0f14;
+      --panel: #151821;
+      --border: #232734;
       --text: #e2e8f0;
-      --text-muted: #848d9f;
+      --text-muted: #798398;
       --accent: #2563eb;
       --accent-hover: #1d4ed8;
-      --active-cell: #10b981;
-      --active-dur: #f59e0b;
-      --active-vel: #ec4899;
-      --cell-empty: #1a1d24;
+      --lane-pitch: #10b981;
+      --lane-dur: #f59e0b;
+      --lane-vel: #ec4899;
+      --cell-bg: #1c202d;
     }
 
     html, body {
@@ -50,7 +50,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid var(--panel-border);
+      border-bottom: 1px solid var(--border);
       gap: 12px;
       flex-wrap: wrap;
     }
@@ -74,7 +74,7 @@
       align-items: center;
     }
 
-    /* 44x44px Minimum Touch Target Standard */
+    /* 44x44px Touch Target Standard */
     .btn, .file-trigger {
       min-height: 44px;
       min-width: 44px;
@@ -85,7 +85,7 @@
       border-radius: 6px;
       font-size: 0.9rem;
       font-weight: 600;
-      border: 1px solid var(--panel-border);
+      border: 1px solid var(--border);
       background-color: var(--panel);
       color: var(--text);
       cursor: pointer;
@@ -99,7 +99,7 @@
     }
 
     .btn:active, .file-trigger:active {
-      opacity: 0.8;
+      opacity: 0.75;
     }
 
     .btn:disabled {
@@ -123,13 +123,13 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      padding: 16px 0;
+      gap: 14px;
+      padding: 14px 0;
     }
 
     .meta-bar {
       background: var(--panel);
-      border: 1px solid var(--panel-border);
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 12px 16px;
       display: grid;
@@ -145,13 +145,14 @@
     }
 
     .meta-item span:first-child {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       text-transform: uppercase;
       color: var(--text-muted);
+      letter-spacing: 0.05em;
     }
 
     .meta-item span:last-child {
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       font-weight: 700;
     }
 
@@ -166,12 +167,12 @@
       color: var(--text-muted);
     }
 
-    select, input[type="number"] {
+    select, input[type="number"], input[type="text"] {
       min-height: 44px;
       padding: 0 12px;
       background: var(--bg);
       color: var(--text);
-      border: 1px solid var(--panel-border);
+      border: 1px solid var(--border);
       border-radius: 6px;
       font-size: 0.95rem;
       touch-action: manipulation;
@@ -179,7 +180,7 @@
 
     .lanes-scroll-wrap {
       background: var(--panel);
-      border: 1px solid var(--panel-border);
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 14px;
       display: flex;
@@ -197,11 +198,11 @@
     }
 
     .lane-heading {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
     }
 
     .lane-row {
@@ -214,8 +215,8 @@
     .step-cell {
       min-width: 44px;
       height: 48px;
-      background: var(--cell-empty);
-      border: 1px solid var(--panel-border);
+      background: var(--cell-bg);
+      border: 1px solid var(--border);
       border-radius: 4px;
       display: flex;
       flex-direction: column;
@@ -231,20 +232,20 @@
     }
 
     .step-cell.active-pitch {
-      border-color: var(--active-cell);
-      color: var(--active-cell);
+      border-color: var(--lane-pitch);
+      color: var(--lane-pitch);
       background: rgba(16, 185, 129, 0.15);
     }
 
     .step-cell.active-dur {
-      border-color: var(--active-dur);
-      color: var(--active-dur);
+      border-color: var(--lane-dur);
+      color: var(--lane-dur);
       background: rgba(245, 158, 11, 0.15);
     }
 
     .step-cell.active-vel {
-      border-color: var(--active-vel);
-      color: var(--active-vel);
+      border-color: var(--lane-vel);
+      color: var(--lane-vel);
       background: rgba(236, 72, 153, 0.15);
     }
 
@@ -255,7 +256,7 @@
       align-items: center;
       font-size: 0.8rem;
       color: var(--text-muted);
-      border-top: 1px solid var(--panel-border);
+      border-top: 1px solid var(--border);
     }
 
     #status {
@@ -269,11 +270,11 @@
   <header>
     <div class="title-area">
       <h1>Audiomodern Riffer Transposer</h1>
-      <p>MIDI to 3,456-Token Fixed Structure .riffle Format</p>
+      <p>Convert and Transpose Standard MIDI to Verified .riffle Preset Format</p>
     </div>
     <div class="header-actions">
       <label class="file-trigger" for="midiFile">
-        <span>Open MIDI</span>
+        <span>Select MIDI</span>
         <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi">
       </label>
       <button type="button" class="btn" id="previewBtn" disabled>Preview</button>
@@ -288,8 +289,8 @@
         <span id="tempoText">120.0 BPM</span>
       </div>
       <div class="meta-item">
-        <span>Length</span>
-        <span id="stepsText">16 Steps</span>
+        <span>Pattern Length</span>
+        <span id="stepsText">64 Steps (4 Bars)</span>
       </div>
       <div class="meta-item">
         <span>Root Pitch</span>
@@ -305,52 +306,48 @@
       </div>
       <div class="control-group">
         <label for="transpose">Transpose:</label>
-        <input type="number" id="transpose" value="0" min="-24" max="24" style="width: 75px;">
+        <input type="number" id="transpose" value="0" min="-36" max="36" style="width: 75px;">
+      </div>
+      <div class="control-group">
+        <label for="presetName">Filename:</label>
+        <input type="text" id="presetName" value="MyRiff" style="width: 120px;" autocorrect="off" autocapitalize="none" spellcheck="false">
       </div>
     </section>
 
     <section class="lanes-scroll-wrap">
       <div class="lane-block">
-        <div class="lane-heading">Pitch Lane (Steps 1–64)</div>
+        <div class="lane-heading">Pitch Sequence Lane (Steps 1–64)</div>
         <div class="lane-row" id="pitchRow"></div>
       </div>
       <div class="lane-block">
-        <div class="lane-heading">Duration Lane (Milliseconds)</div>
+        <div class="lane-heading">Duration Sequence Lane (Milliseconds)</div>
         <div class="lane-row" id="durRow"></div>
       </div>
       <div class="lane-block">
-        <div class="lane-heading">Velocity Lane (0–127)</div>
+        <div class="lane-heading">Velocity Sequence Lane (0–127)</div>
         <div class="lane-row" id="velRow"></div>
       </div>
     </section>
   </main>
 
   <footer>
-    <span id="status">Select a standard MIDI file to begin.</span>
-    <span>Preset Standard: Fixed 3,456 Integers</span>
+    <span id="status">Select a standard MIDI file (.mid, .midi).</span>
+    <span>Preset Standard: Fixed 3,456 Stream Tokens</span>
   </footer>
 
   <script>
     const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-    
-    // Exact schema based on native Riffer presets:
-    // Fixed total length: 3,456 integers
-    // Pitches start at index 700
-    // Durations start at index 1000
-    // Velocities start at index 1300
     const RIFFLE_ARRAY_LEN = 3456;
-    const PITCH_START = 700;
-    const DUR_START = 1000;
-    const VEL_START = 1300;
 
     const state = {
       bpm: 120.0,
-      steps: 16,
+      bars: 4,
+      totalSteps: 64,
       rootNote: 60,
       pitches: new Array(64).fill(0),
       durations: new Array(64).fill(0),
       velocities: new Array(64).fill(0),
-      gridDivision: 4 // 16th note default
+      gridDivision: 4 // 16th notes default
     };
 
     let audioCtx = null;
@@ -365,8 +362,8 @@
       return audioCtx;
     }
 
-    // Standard Binary MIDI Parser (Format 0/1)
-    function parseMidiFile(buffer) {
+    // Standard Binary MIDI Parser (0/1)
+    function parseMidi(buffer) {
       const dv = new DataView(buffer);
       let p = 0;
 
@@ -383,8 +380,8 @@
       const division = dv.getUint16(p); p += 2;
       p += (headerLen - 6);
 
-      const ticksPerQuarter = (division & 0x8000) === 0 ? division : 480;
-      let microsecondsPerQuarter = 500000; // 120 BPM
+      const ticksPerBeat = (division & 0x8000) === 0 ? division : 480;
+      let microsecondsPerBeat = 500000; // 120 BPM
       const rawEvents = [];
 
       for (let t = 0; t < numTracks; t++) {
@@ -399,7 +396,7 @@
         let trackPos = p;
         const trackEnd = trackPos + trackLen;
         let runningStatus = 0;
-        let trackTick = 0;
+        let currentTick = 0;
 
         while (trackPos < trackEnd) {
           let delta = 0;
@@ -408,7 +405,7 @@
             delta = (delta << 7) | (b & 0x7F);
             if (!(b & 0x80)) break;
           }
-          trackTick += delta;
+          currentTick += delta;
 
           let status = dv.getUint8(trackPos);
           if (status >= 0x80) {
@@ -418,7 +415,7 @@
             status = runningStatus;
           }
 
-          const type = status >> 4;
+          const msgType = status >> 4;
 
           if (status === 0xFF) {
             const metaType = dv.getUint8(trackPos++);
@@ -429,7 +426,7 @@
               if (!(b & 0x80)) break;
             }
             if (metaType === 0x51 && metaLen === 3) {
-              microsecondsPerQuarter = (dv.getUint8(trackPos) << 16) | (dv.getUint8(trackPos + 1) << 8) | dv.getUint8(trackPos + 2);
+              microsecondsPerBeat = (dv.getUint8(trackPos) << 16) | (dv.getUint8(trackPos + 1) << 8) | dv.getUint8(trackPos + 2);
             }
             trackPos += metaLen;
           } else if (status === 0xF0 || status === 0xF7) {
@@ -440,85 +437,83 @@
               if (!(b & 0x80)) break;
             }
             trackPos += sysLen;
-          } else if (type === 0x9) {
+          } else if (msgType === 0x9) {
             const note = dv.getUint8(trackPos++);
             const vel = dv.getUint8(trackPos++);
-            rawEvents.push({ tick: trackTick, type: vel > 0 ? 'on' : 'off', note, vel });
-          } else if (type === 0x8) {
+            rawEvents.push({ tick: currentTick, type: vel > 0 ? 'on' : 'off', note, vel });
+          } else if (msgType === 0x8) {
             const note = dv.getUint8(trackPos++);
             dv.getUint8(trackPos++);
-            rawEvents.push({ tick: trackTick, type: 'off', note, vel: 0 });
-          } else if (type === 0xA || type === 0xB || type === 0xE) {
+            rawEvents.push({ tick: currentTick, type: 'off', note, vel: 0 });
+          } else if (msgType === 0xA || msgType === 0xB || msgType === 0xE) {
             trackPos += 2;
-          } else if (type === 0xC || type === 0xD) {
+          } else if (msgType === 0xC || msgType === 0xD) {
             trackPos += 1;
           }
         }
         p = trackEnd;
       }
 
-      return { ticksPerQuarter, tempo: microsecondsPerQuarter, events: rawEvents };
+      return { ticksPerBeat, tempo: microsecondsPerBeat, events: rawEvents };
     }
 
     function processMidi(parsed) {
       state.bpm = Math.round((60000000 / parsed.tempo) * 10) / 10;
-      const ticksPerStep = parsed.ticksPerQuarter / state.gridDivision;
-      const onMap = new Map();
-      const notes = [];
+      const ticksPerStep = parsed.ticksPerBeat / state.gridDivision;
+      const onNotes = new Map();
+      const extractedNotes = [];
 
       parsed.events.sort((a, b) => a.tick - b.tick);
 
       parsed.events.forEach(e => {
         if (e.type === 'on') {
-          onMap.set(e.note, { tick: e.tick, vel: e.vel });
-        } else if (e.type === 'off' && onMap.has(e.note)) {
-          const start = onMap.get(e.note);
+          onNotes.set(e.note, { tick: e.tick, vel: e.vel });
+        } else if (e.type === 'off' && onNotes.has(e.note)) {
+          const start = onNotes.get(e.note);
           const durTicks = Math.max(1, e.tick - start.tick);
           const stepIndex = Math.round(start.tick / ticksPerStep);
-          const durMs = Math.round((durTicks / parsed.ticksPerQuarter) * (60000 / state.bpm));
-          notes.push({ step: stepIndex, pitch: e.note, vel: start.vel, dur: durMs });
-          onMap.delete(e.note);
+          const durMs = Math.round((durTicks / parsed.ticksPerBeat) * (60000 / state.bpm));
+          extractedNotes.push({ step: stepIndex, pitch: e.note, vel: start.vel, dur: durMs });
+          onNotes.delete(e.note);
         }
       });
 
-      if (notes.length === 0) throw new Error("No MIDI note messages found.");
+      if (extractedNotes.length === 0) throw new Error("No MIDI note messages detected.");
 
-      const maxStep = Math.max(...notes.map(n => n.step));
-      let stepCapacity = 16;
-      if (maxStep >= 32) stepCapacity = 64;
-      else if (maxStep >= 16) stepCapacity = 32;
+      const maxStep = Math.max(...extractedNotes.map(n => n.step));
+      state.bars = maxStep >= 64 ? 8 : 4;
+      state.totalSteps = 64;
 
-      state.steps = stepCapacity;
       state.pitches.fill(0);
       state.durations.fill(0);
       state.velocities.fill(0);
 
       const transposeOffset = parseInt(document.getElementById('transpose').value, 10) || 0;
 
-      notes.forEach(n => {
-        if (n.step < stepCapacity) {
+      extractedNotes.forEach(n => {
+        if (n.step < 64) {
           state.pitches[n.step] = Math.max(0, Math.min(127, n.pitch + transposeOffset));
           state.durations[n.step] = n.dur;
           state.velocities[n.step] = n.vel;
         }
       });
 
-      const stepDurationMs = Math.round(60000 / (state.bpm * state.gridDivision));
-      for (let i = 0; i < stepCapacity; i++) {
+      const defaultStepDurMs = Math.round(60000 / (state.bpm * state.gridDivision));
+      for (let i = 0; i < 64; i++) {
         if (state.pitches[i] > 0 && state.durations[i] === 0) {
-          state.durations[i] = stepDurationMs;
+          state.durations[i] = defaultStepDurMs;
         }
       }
 
       const activePitch = state.pitches.find(p => p > 0);
-      state.rootNote = activePitch || 60;
+      state.rootNote = activePitch || 69;
 
       render();
     }
 
     function render() {
       document.getElementById('tempoText').textContent = `${state.bpm.toFixed(1)} BPM`;
-      document.getElementById('stepsText').textContent = `${state.steps} Steps`;
+      document.getElementById('stepsText').textContent = `${state.totalSteps} Steps (${state.bars} Bars)`;
       document.getElementById('rootText').textContent = `${NOTE_NAMES[state.rootNote % 12]} (${state.rootNote})`;
 
       const pRow = document.getElementById('pitchRow');
@@ -531,7 +526,7 @@
 
       let activeCount = 0;
 
-      for (let i = 0; i < state.steps; i++) {
+      for (let i = 0; i < state.totalSteps; i++) {
         const p = state.pitches[i];
         const d = state.durations[i];
         const v = state.velocities[i];
@@ -558,16 +553,16 @@
       document.getElementById('exportBtn').disabled = activeCount === 0;
     }
 
-    // Fixed 3456-Length Riffer Generator Function
-    function buildRiffleBuffer() {
+    // Exact Verified Riffer Generator Function
+    function buildAuthenticRiffle() {
       const arr = new Array(RIFFLE_ARRAY_LEN).fill(0);
 
-      // Header Indices
-      arr[0] = 200; // Riffer version token
-      arr[1] = Math.round(state.bpm * 100); // BPM * 100
-      arr[2] = state.steps; // Number of steps
+      // Header Parameters
+      arr[0] = 200;                                 // Version token
+      arr[1] = Math.round(state.bpm * 100);         // BPM * 100
+      arr[2] = state.bars;                          // Number of bars (4 or 8)
       arr[3] = 0;
-      arr[4] = state.rootNote; // Scale / Root reference
+      arr[4] = state.rootNote;                      // Key / Root MIDI reference
       arr[7] = 1;
       arr[11] = 3;
       arr[13] = 1;
@@ -575,31 +570,59 @@
       arr[19] = 9;
       arr[29] = 1;
 
-      // Loop Step Markers (Indices 31..38 set to 4000)
-      for (let i = 31; i <= 38; i++) {
-        arr[i] = 4000;
+      // Bar loop boundary tick values (4000 ticks per active measure)
+      for (let b = 0; b < state.bars; b++) {
+        arr[31 + b] = 4000;
       }
 
       arr[47] = 65;
       arr[49] = 8;
 
-      // Populate Step Lanes
-      for (let i = 0; i < state.steps; i++) {
-        arr[PITCH_START + i] = state.pitches[i];
-        arr[DUR_START + i] = state.durations[i];
-        arr[VEL_START + i] = state.velocities[i];
+      // Primary Pitch Lane (Offset 120, terminated by -1, 0, -1)
+      for (let i = 0; i < 64; i++) {
+        arr[120 + i] = state.pitches[i];
+      }
+      arr[184] = -1;
+      arr[185] = 0;
+      arr[186] = -1;
+
+      // Secondary Pitch / Interval Lane (Offset 700, terminated by -1, 0, -1)
+      for (let i = 0; i < 64; i++) {
+        arr[700 + i] = state.pitches[i];
+      }
+      arr[764] = -1;
+      arr[765] = 0;
+      arr[766] = -1;
+
+      // Duration Lane (Offset 1000, terminated by -1, 0, -1)
+      for (let i = 0; i < 64; i++) {
+        arr[1000 + i] = state.durations[i];
+      }
+      arr[1064] = -1;
+      arr[1065] = 0;
+      arr[1066] = -1;
+
+      // Velocity Lane (Offset 1300, terminated by -1, 0, -1)
+      for (let i = 0; i < 64; i++) {
+        arr[1300 + i] = state.velocities[i];
+      }
+      arr[1364] = -1;
+      arr[1365] = 0;
+      arr[1366] = -1;
+
+      // Scale Pitch-Class and Interval Companion Lanes
+      for (let i = 0; i < 64; i++) {
+        if (state.pitches[i] > 0) {
+          arr[1600 + i] = 65 + (state.pitches[i] % 12);
+          arr[1800 + i] = 32;
+        }
       }
 
-      // Exact Delimiter Tokens Required by Riffer
-      arr[799] = -1;
-      arr[1099] = -1;
-      arr[1399] = -1;
-
-      // Format as comma-separated string with strictly no trailing comma
+      // Format strictly as comma-separated integers, no trailing comma
       return arr.join(',');
     }
 
-    // Touch Event Wire-ups
+    // Touch and File Event Handlers
     const fileInput = document.getElementById('midiFile');
     const statusText = document.getElementById('status');
 
@@ -607,12 +630,14 @@
       const f = e.target.files[0];
       if (!f) return;
 
-      statusText.textContent = `Processing ${f.name}...`;
-      const reader = new FileReader();
+      statusText.textContent = `Reading ${f.name}...`;
+      const baseName = f.name.replace(/\.[^/.]+$/, "");
+      document.getElementById('presetName').value = baseName;
 
+      const reader = new FileReader();
       reader.onload = function(evt) {
         try {
-          const parsed = parseMidiFile(evt.target.result);
+          const parsed = parseMidi(evt.target.result);
           processMidi(parsed);
           statusText.textContent = `Loaded ${f.name} successfully.`;
         } catch (err) {
@@ -622,7 +647,7 @@
 
       reader.onerror = () => { statusText.textContent = "Failed reading file."; };
       reader.readAsArrayBuffer(f);
-      this.value = ''; // Reset input to allow reloading same file
+      this.value = '';
     });
 
     document.getElementById('quantizeSelect').addEventListener('change', (e) => {
@@ -633,13 +658,13 @@
       if (state.pitches.some(p => p > 0)) render();
     });
 
-    // Touch-safe Web Audio synthesizer preview
+    // Touch-safe Web Audio Synthesizer Preview
     document.getElementById('previewBtn').addEventListener('pointerdown', () => {
       const ctx = getAudioCtx();
       const start = ctx.currentTime + 0.05;
       const stepDuration = (60 / state.bpm) / state.gridDivision;
 
-      for (let i = 0; i < state.steps; i++) {
+      for (let i = 0; i < state.totalSteps; i++) {
         const p = state.pitches[i];
         const v = state.velocities[i];
         if (p > 0 && v > 0) {
@@ -666,20 +691,24 @@
       statusText.textContent = "Playing preview...";
     });
 
-    // Standard Blob Export
+    // Export .riffle File (MIME: application/octet-stream to prevent Safari .txt append)
     document.getElementById('exportBtn').addEventListener('pointerdown', () => {
       try {
-        const textData = buildRiffleBuffer();
-        const blob = new Blob([textData], { type: 'text/plain;charset=utf-8' });
+        const textData = buildAuthenticRiffle();
+        // Use application/octet-stream so iPadOS Safari does not append .txt
+        const blob = new Blob([textData], { type: 'application/octet-stream' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `transposed_riff_${Date.now()}.riffle`;
+        
+        let filename = (document.getElementById('presetName').value.trim() || 'Riff') + '.riffle';
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        statusText.textContent = "Exported 3,456-token .riffle file successfully.";
+
+        statusText.textContent = `Exported "${filename}" successfully.`;
       } catch (err) {
         statusText.textContent = `Export failed: ${err.message}`;
       }
