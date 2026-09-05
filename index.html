@@ -3,713 +3,158 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>MIDI to Audiomodern Riffer Transposer</title>
+  <title>MIDI to .riffle Converter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Note: @tonejs/midi is used to accurately parse the binary MIDI file -->
+  <script src="https://unpkg.com/@tonejs/midi"></script>
   <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-      -webkit-user-select: none;
-      user-select: none;
-      -webkit-touch-callout: none;
-    }
-
-    :root {
-      --bg: #0d0f14;
-      --panel: #161922;
-      --border: #232734;
-      --text: #e2e8f0;
-      --text-muted: #798398;
-      --accent: #2563eb;
-      --accent-hover: #1d4ed8;
-      --lane-pitch: #10b981;
-      --lane-dur: #f59e0b;
-      --lane-vel: #ec4899;
-      --cell-bg: #1c202d;
-    }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      background-color: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      touch-action: manipulation;
-    }
-
+    /* Prevent double-tap zoom on iPadOS */
     body {
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      padding: env(safe-area-inset-top, 16px) env(safe-area-inset-right, 16px) env(safe-area-inset-bottom, 16px) env(safe-area-inset-left, 16px);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
-
-    header {
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border);
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .title-area h1 {
-      margin: 0;
-      font-size: 1.15rem;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-    }
-
-    .title-area p {
-      margin: 2px 0 0 0;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-
-    /* 44x44px Touch Target Standard */
-    .btn, .file-trigger {
+    
+    /* Ensure minimum 44x44px touch targets */
+    .touch-target {
       min-height: 44px;
       min-width: 44px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 20px;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      border: 1px solid var(--border);
-      background-color: var(--panel);
-      color: var(--text);
-      cursor: pointer;
-      touch-action: manipulation;
     }
-
-    .btn-primary {
-      background-color: var(--accent);
-      border-color: var(--accent);
-      color: #ffffff;
-    }
-
-    .btn:active, .file-trigger:active {
-      opacity: 0.75;
-    }
-
-    .btn:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
-
-    input[type="file"] {
+    
+    /* Custom styling for the file input wrapper */
+    .file-input-wrapper input[type="file"] {
       position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      border: 0;
-    }
-
-    main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      padding: 14px 0;
-    }
-
-    .meta-bar {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px 16px;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 12px;
-      align-items: center;
-    }
-
-    .meta-item {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .meta-item span:first-child {
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      letter-spacing: 0.05em;
-    }
-
-    .meta-item span:last-child {
-      font-size: 1.15rem;
-      font-weight: 700;
-    }
-
-    .control-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .control-group label {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    select, input[type="number"], input[type="text"] {
-      min-height: 44px;
-      padding: 0 12px;
-      background: var(--bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 0.95rem;
-      touch-action: manipulation;
-    }
-
-    .lanes-scroll-wrap {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .lane-block {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      width: max-content;
-    }
-
-    .lane-heading {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .lane-row {
-      display: grid;
-      grid-auto-flow: column;
-      grid-auto-columns: minmax(44px, 1fr);
-      gap: 4px;
-    }
-
-    .step-cell {
-      min-width: 44px;
-      height: 48px;
-      background: var(--cell-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .step-cell span:first-child {
-      font-size: 0.65rem;
-      color: var(--text-muted);
-    }
-
-    .step-cell.active-pitch {
-      border-color: var(--lane-pitch);
-      color: var(--lane-pitch);
-      background: rgba(16, 185, 129, 0.15);
-    }
-
-    .step-cell.active-dur {
-      border-color: var(--lane-dur);
-      color: var(--lane-dur);
-      background: rgba(245, 158, 11, 0.15);
-    }
-
-    .step-cell.active-vel {
-      border-color: var(--lane-vel);
-      color: var(--lane-vel);
-      background: rgba(236, 72, 153, 0.15);
-    }
-
-    footer {
-      padding-top: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      border-top: 1px solid var(--border);
-    }
-
-    #status {
-      font-weight: 500;
-      color: var(--accent);
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
     }
   </style>
 </head>
-<body>
+<body class="bg-gray-950 text-gray-100 font-sans h-screen flex flex-col items-center justify-center p-6 antialiased">
 
-  <header>
-    <div class="title-area">
-      <h1>Audiomodern Riffer Transposer</h1>
-      <p>Verified Step Stream Compiler (Tokens [800], [1400], [2000])</p>
+  <main class="w-full max-w-md bg-gray-900 border border-gray-800 rounded-xl shadow-2xl p-8 flex flex-col gap-6">
+    <header class="text-center">
+      <h1 class="text-2xl font-semibold tracking-tight text-white">MIDI to Riffle</h1>
+      <p class="text-sm text-gray-400 mt-1">Select a standard .mid file to convert</p>
+    </header>
+
+    <!-- File Selection -->
+    <div class="relative file-input-wrapper bg-gray-800 hover:bg-gray-700 border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center touch-target transition-colors">
+      <input type="file" id="midiInput" accept=".mid,.midi,audio/midi,audio/x-midi" aria-label="Upload MIDI File">
+      <span id="fileLabel" class="text-gray-300 font-medium pointer-events-none px-4 py-3">Tap to Select MIDI File</span>
     </div>
-    <div class="header-actions">
-      <label class="file-trigger" for="midiFile">
-        <span>Open MIDI</span>
-        <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi">
-      </label>
-      <button type="button" class="btn" id="previewBtn" disabled>Preview</button>
-      <button type="button" class="btn btn-primary" id="exportBtn" disabled>Export .riffle</button>
-    </div>
-  </header>
 
-  <main>
-    <section class="meta-bar">
-      <div class="meta-item">
-        <span>Tempo</span>
-        <span id="tempoText">120.0 BPM</span>
-      </div>
-      <div class="meta-item">
-        <span>Pattern Length</span>
-        <span id="stepsText">64 Steps (4 Bars)</span>
-      </div>
-      <div class="meta-item">
-        <span>Root Pitch</span>
-        <span id="rootText">C (60)</span>
-      </div>
-      <div class="control-group">
-        <label for="quantizeSelect">Grid:</label>
-        <select id="quantizeSelect">
-          <option value="16" selected>1/16</option>
-          <option value="8">1/8</option>
-          <option value="32">1/32</option>
-        </select>
-      </div>
-      <div class="control-group">
-        <label for="transpose">Transpose:</label>
-        <input type="number" id="transpose" value="0" min="-36" max="36" style="width: 75px;">
-      </div>
-      <div class="control-group">
-        <label for="presetName">File Name:</label>
-        <input type="text" id="presetName" value="Transposed_Riff" style="width: 130px;" autocorrect="off" autocapitalize="none" spellcheck="false">
-      </div>
-    </section>
+    <!-- Error/Status Output -->
+    <div id="statusOutput" class="text-sm text-center font-mono h-6 text-emerald-400"></div>
 
-    <section class="lanes-scroll-wrap">
-      <div class="lane-block">
-        <div class="lane-heading">Pitch Sequence Lane (Indices 800–863)</div>
-        <div class="lane-row" id="pitchRow"></div>
-      </div>
-      <div class="lane-block">
-        <div class="lane-heading">Duration Sequence Lane (Indices 1400–1463)</div>
-        <div class="lane-row" id="durRow"></div>
-      </div>
-      <div class="lane-block">
-        <div class="lane-heading">Velocity Sequence Lane (Indices 2000–2063)</div>
-        <div class="lane-row" id="velRow"></div>
-      </div>
-    </section>
+    <!-- Action Button -->
+    <button id="convertBtn" disabled class="touch-target w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded-lg transition-colors flex items-center justify-center">
+      Convert & Download
+    </button>
   </main>
 
-  <footer>
-    <span id="status">Select a standard MIDI file (.mid, .midi) to convert.</span>
-    <span>3,456-Token Fixed Architecture</span>
-  </footer>
-
   <script>
-    const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-    
-    // Verified memory addresses from genuine presets (Tokens 800, 1400, 2000)
-    const TOTAL_TOKENS = 3456;
-    const PITCH_OFFSET = 800;
-    const DUR_OFFSET = 1400;
-    const VEL_OFFSET = 2000;
+    const midiInput = document.getElementById('midiInput');
+    const fileLabel = document.getElementById('fileLabel');
+    const convertBtn = document.getElementById('convertBtn');
+    const statusOutput = document.getElementById('statusOutput');
+    let loadedMidi = null;
+    let fileName = 'sequence';
 
-    const state = {
-      bpm: 120.0,
-      bars: 4,
-      totalSteps: 64,
-      rootNote: 69,
-      pitches: new Array(64).fill(0),
-      durations: new Array(64).fill(0),
-      velocities: new Array(64).fill(0),
-      gridDivision: 4 // 16th note default
-    };
+    // Handle File Selection
+    midiInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-    let audioCtx = null;
-    function getAudioCtx() {
-      if (!audioCtx) {
-        const AudioClass = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioClass();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-      return audioCtx;
-    }
+      fileLabel.textContent = file.name;
+      fileName = file.name.replace(/\.[^/.]+$/, "");
+      statusOutput.textContent = 'Parsing MIDI...';
+      convertBtn.disabled = true;
 
-    // Binary Standard MIDI (Format 0/1) Parser
-    function parseMidi(buffer) {
-      const dv = new DataView(buffer);
-      let p = 0;
-
-      function readAscii(len) {
-        let s = "";
-        for (let i = 0; i < len; i++) s += String.fromCharCode(dv.getUint8(p++));
-        return s;
-      }
-
-      if (readAscii(4) !== "MThd") throw new Error("File is not a valid MIDI file.");
-      const headerLen = dv.getUint32(p); p += 4;
-      const format = dv.getUint16(p); p += 2;
-      const numTracks = dv.getUint16(p); p += 2;
-      const division = dv.getUint16(p); p += 2;
-      p += (headerLen - 6);
-
-      const ticksPerBeat = (division & 0x8000) === 0 ? division : 480;
-      let microsecondsPerBeat = 500000; // 120 BPM default
-      const rawEvents = [];
-
-      for (let t = 0; t < numTracks; t++) {
-        if (p >= dv.byteLength) break;
-        const trackId = readAscii(4);
-        const trackLen = dv.getUint32(p); p += 4;
-        if (trackId !== "MTrk") {
-          p += trackLen;
-          continue;
-        }
-
-        let trackPos = p;
-        const trackEnd = trackPos + trackLen;
-        let runningStatus = 0;
-        let currentTick = 0;
-
-        while (trackPos < trackEnd) {
-          let delta = 0;
-          while (true) {
-            const b = dv.getUint8(trackPos++);
-            delta = (delta << 7) | (b & 0x7F);
-            if (!(b & 0x80)) break;
-          }
-          currentTick += delta;
-
-          let status = dv.getUint8(trackPos);
-          if (status >= 0x80) {
-            trackPos++;
-            runningStatus = status;
-          } else {
-            status = runningStatus;
-          }
-
-          const msgType = status >> 4;
-
-          if (status === 0xFF) {
-            const metaType = dv.getUint8(trackPos++);
-            let metaLen = 0;
-            while (true) {
-              const b = dv.getUint8(trackPos++);
-              metaLen = (metaLen << 7) | (b & 0x7F);
-              if (!(b & 0x80)) break;
-            }
-            if (metaType === 0x51 && metaLen === 3) {
-              microsecondsPerBeat = (dv.getUint8(trackPos) << 16) | (dv.getUint8(trackPos + 1) << 8) | dv.getUint8(trackPos + 2);
-            }
-            trackPos += metaLen;
-          } else if (status === 0xF0 || status === 0xF7) {
-            let sysLen = 0;
-            while (true) {
-              const b = dv.getUint8(trackPos++);
-              sysLen = (sysLen << 7) | (b & 0x7F);
-              if (!(b & 0x80)) break;
-            }
-            trackPos += sysLen;
-          } else if (msgType === 0x9) {
-            const note = dv.getUint8(trackPos++);
-            const vel = dv.getUint8(trackPos++);
-            rawEvents.push({ tick: currentTick, type: vel > 0 ? 'on' : 'off', note, vel });
-          } else if (msgType === 0x8) {
-            const note = dv.getUint8(trackPos++);
-            dv.getUint8(trackPos++);
-            rawEvents.push({ tick: currentTick, type: 'off', note, vel: 0 });
-          } else if (msgType === 0xA || msgType === 0xB || msgType === 0xE) {
-            trackPos += 2;
-          } else if (msgType === 0xC || msgType === 0xD) {
-            trackPos += 1;
-          }
-        }
-        p = trackEnd;
-      }
-
-      return { ticksPerBeat, tempo: microsecondsPerBeat, events: rawEvents };
-    }
-
-    function processMidi(parsed) {
-      state.bpm = Math.round((60000000 / parsed.tempo) * 10) / 10;
-      const ticksPerStep = parsed.ticksPerBeat / state.gridDivision;
-      const onNotes = new Map();
-      const extractedNotes = [];
-
-      parsed.events.sort((a, b) => a.tick - b.tick);
-
-      parsed.events.forEach(e => {
-        if (e.type === 'on') {
-          onNotes.set(e.note, { tick: e.tick, vel: e.vel });
-        } else if (e.type === 'off' && onNotes.has(e.note)) {
-          const start = onNotes.get(e.note);
-          const durTicks = Math.max(1, e.tick - start.tick);
-          const stepIndex = Math.round(start.tick / ticksPerStep);
-          const durMs = Math.round((durTicks / parsed.ticksPerBeat) * (60000 / state.bpm));
-          extractedNotes.push({ step: stepIndex, pitch: e.note, vel: start.vel, dur: durMs });
-          onNotes.delete(e.note);
-        }
-      });
-
-      if (extractedNotes.length === 0) throw new Error("No MIDI note messages detected.");
-
-      const maxStep = Math.max(...extractedNotes.map(n => n.step));
-      state.bars = maxStep >= 64 ? 8 : 4;
-      state.totalSteps = 64;
-
-      state.pitches.fill(0);
-      state.durations.fill(0);
-      state.velocities.fill(0);
-
-      const transposeOffset = parseInt(document.getElementById('transpose').value, 10) || 0;
-
-      extractedNotes.forEach(n => {
-        if (n.step < 64) {
-          state.pitches[n.step] = Math.max(0, Math.min(127, n.pitch + transposeOffset));
-          state.durations[n.step] = n.dur;
-          state.velocities[n.step] = n.vel;
-        }
-      });
-
-      // Default duration filler for activated steps
-      const defaultStepDurMs = Math.round(60000 / (state.bpm * state.gridDivision));
-      for (let i = 0; i < 64; i++) {
-        if (state.pitches[i] > 0 && state.durations[i] === 0) {
-          state.durations[i] = defaultStepDurMs;
-        }
-      }
-
-      const activePitch = state.pitches.find(p => p > 0);
-      state.rootNote = activePitch || 69;
-
-      render();
-    }
-
-    function render() {
-      document.getElementById('tempoText').textContent = `${state.bpm.toFixed(1)} BPM`;
-      document.getElementById('stepsText').textContent = `${state.totalSteps} Steps (${state.bars} Bars)`;
-      document.getElementById('rootText').textContent = `${NOTE_NAMES[state.rootNote % 12]} (${state.rootNote})`;
-
-      const pRow = document.getElementById('pitchRow');
-      const dRow = document.getElementById('durRow');
-      const vRow = document.getElementById('velRow');
-
-      pRow.innerHTML = '';
-      dRow.innerHTML = '';
-      vRow.innerHTML = '';
-
-      let activeCount = 0;
-
-      for (let i = 0; i < state.totalSteps; i++) {
-        const p = state.pitches[i];
-        const d = state.durations[i];
-        const v = state.velocities[i];
-
-        if (p > 0) activeCount++;
-
-        const pCell = document.createElement('div');
-        pCell.className = `step-cell ${p > 0 ? 'active-pitch' : ''}`;
-        pCell.innerHTML = `<span>${i + 1}</span><span>${p > 0 ? NOTE_NAMES[p % 12] + Math.floor(p / 12 - 1) : '-'}</span>`;
-        pRow.appendChild(pCell);
-
-        const dCell = document.createElement('div');
-        dCell.className = `step-cell ${d > 0 ? 'active-dur' : ''}`;
-        dCell.innerHTML = `<span>${i + 1}</span><span>${d > 0 ? d : '-'}</span>`;
-        dRow.appendChild(dCell);
-
-        const vCell = document.createElement('div');
-        vCell.className = `step-cell ${v > 0 ? 'active-vel' : ''}`;
-        vCell.innerHTML = `<span>${i + 1}</span><span>${v > 0 ? v : '-'}</span>`;
-        vRow.appendChild(vCell);
-      }
-
-      document.getElementById('previewBtn').disabled = activeCount === 0;
-      document.getElementById('exportBtn').disabled = activeCount === 0;
-    }
-
-    // Exact Generator Replicating Factory Preset Byte-for-Byte Architecture
-    function generateAuthenticRiffle() {
-      const tokens = new Array(TOTAL_TOKENS).fill(0);
-
-      // Header Parameters (Verified against Sources 4-10)
-      tokens[0] = 200;                                 // Version token
-      tokens[1] = Math.round(state.bpm * 100);         // BPM * 100
-      tokens[2] = state.bars;                          // Number of bars (4 or 8)
-      tokens[3] = 0;
-      tokens[4] = state.rootNote;                      // Key / Root MIDI note
-      tokens[7] = 1;
-      tokens[11] = 3;
-      tokens[13] = 1;
-      tokens[16] = 2;
-      tokens[19] = 9;
-      tokens[29] = 1;
-
-      // Active measure loop tick lengths (4000 ticks per active measure)
-      for (let b = 0; b < state.bars; b++) {
-        tokens[31 + b] = 4000;
-      }
-
-      tokens[47] = 65;
-      tokens[49] = 8;
-
-      // Pitch Sequence Lane (Indices 800..863)
-      for (let i = 0; i < 64; i++) {
-        tokens[PITCH_OFFSET + i] = state.pitches[i];
-      }
-      tokens[PITCH_OFFSET + 64] = -1;
-      tokens[PITCH_OFFSET + 65] = 0;
-      tokens[PITCH_OFFSET + 66] = -1;
-
-      // Duration Sequence Lane (Indices 1400..1463)
-      for (let i = 0; i < 64; i++) {
-        tokens[DUR_OFFSET + i] = state.durations[i];
-      }
-      tokens[DUR_OFFSET + 64] = -1;
-      tokens[DUR_OFFSET + 65] = 0;
-      tokens[DUR_OFFSET + 66] = -1;
-
-      // Velocity Sequence Lane (Indices 2000..2063)
-      for (let i = 0; i < 64; i++) {
-        tokens[VEL_OFFSET + i] = state.velocities[i];
-      }
-      tokens[VEL_OFFSET + 64] = -1;
-      tokens[VEL_OFFSET + 65] = 0;
-      tokens[VEL_OFFSET + 66] = -1;
-
-      // Scale Pitch-Class and Interval Companion Lanes (Indices 2600 & 2800)
-      for (let i = 0; i < 64; i++) {
-        if (state.pitches[i] > 0) {
-          tokens[2600 + i] = 65 + (state.pitches[i] % 12);
-          tokens[2800 + i] = 32;
-        }
-      }
-
-      // Format strictly as comma-separated integers, ending with an integer and NO trailing comma
-      return tokens.join(',');
-    }
-
-    // Touch and File Event Bindings
-    const fileInput = document.getElementById('midiFile');
-    const statusText = document.getElementById('status');
-
-    fileInput.addEventListener('change', function(e) {
-      const f = e.target.files[0];
-      if (!f) return;
-
-      statusText.textContent = `Reading ${f.name}...`;
-      const baseName = f.name.replace(/\.[^/.]+$/, "");
-      document.getElementById('presetName').value = baseName;
-
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        try {
-          const parsed = parseMidi(evt.target.result);
-          processMidi(parsed);
-          statusText.textContent = `Loaded ${f.name} successfully.`;
-        } catch (err) {
-          statusText.textContent = `Error: ${err.message}`;
-        }
-      };
-
-      reader.onerror = () => { statusText.textContent = "Failed reading file."; };
-      reader.readAsArrayBuffer(f);
-      this.value = ''; // Reset input to permit reloading same file
-    });
-
-    document.getElementById('quantizeSelect').addEventListener('change', (e) => {
-      state.gridDivision = parseInt(e.target.value, 10) / 4;
-    });
-
-    document.getElementById('transpose').addEventListener('input', () => {
-      if (state.pitches.some(p => p > 0)) render();
-    });
-
-    // Touch-safe Web Audio Synthesizer Preview
-    document.getElementById('previewBtn').addEventListener('pointerdown', () => {
-      const ctx = getAudioCtx();
-      const start = ctx.currentTime + 0.05;
-      const stepDuration = (60 / state.bpm) / state.gridDivision;
-
-      for (let i = 0; i < state.totalSteps; i++) {
-        const p = state.pitches[i];
-        const v = state.velocities[i];
-        if (p > 0 && v > 0) {
-          const noteTime = start + (i * stepDuration);
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-
-          const freq = 440 * Math.pow(2, (p - 69) / 12);
-          osc.frequency.setValueAtTime(freq, noteTime);
-
-          const gainVal = (v / 127) * 0.25;
-          const durSec = Math.max(0.04, (state.durations[i] || (stepDuration * 1000)) / 1000);
-
-          gain.gain.setValueAtTime(gainVal, noteTime);
-          gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + durSec);
-
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-
-          osc.start(noteTime);
-          osc.stop(noteTime + durSec);
-        }
-      }
-      statusText.textContent = "Playing preview...";
-    });
-
-    // Export .riffle File (MIME: application/octet-stream strictly prevents Safari .txt append)
-    document.getElementById('exportBtn').addEventListener('pointerdown', () => {
       try {
-        const textData = generateAuthenticRiffle();
-        const blob = new Blob([textData], { type: 'application/octet-stream' });
+        const arrayBuffer = await file.arrayBuffer();
+        loadedMidi = new Midi(arrayBuffer);
+        statusOutput.textContent = `Loaded: ${loadedMidi.tracks.length} tracks`;
+        convertBtn.disabled = false;
+      } catch (err) {
+        statusOutput.textContent = 'Error parsing MIDI file.';
+        statusOutput.classList.replace('text-emerald-400', 'text-red-400');
+        console.error(err);
+      }
+    });
+
+    // Handle Conversion
+    convertBtn.addEventListener('click', () => {
+      if (!loadedMidi) return;
+      
+      try {
+        const riffleCsv = convertMidiToRiffle(loadedMidi);
+        const blob = new Blob([riffleCsv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
+        
         const a = document.createElement('a');
         a.href = url;
-        
-        let filename = (document.getElementById('presetName').value.trim() || 'Riff') + '.riffle';
-        a.download = filename;
+        a.download = `${fileName}.riffle`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        
         URL.revokeObjectURL(url);
-
-        statusText.textContent = `Exported "${filename}" successfully.`;
+        statusOutput.textContent = 'Download complete.';
       } catch (err) {
-        statusText.textContent = `Export failed: ${err.message}`;
+        statusOutput.textContent = 'Conversion failed.';
+        statusOutput.classList.replace('text-emerald-400', 'text-red-400');
+        console.error(err);
       }
     });
+
+    /**
+     * Converts Tonejs/Midi structure to .riffle CSV format
+     * Note: Header padding is scaffolded based on pattern analysis.
+     */
+    function convertMidiToRiffle(midi) {
+      const riffle = [];
+      const activeTracks = midi.tracks.filter(t => t.notes.length > 0);
+      const trackCount = activeTracks.length || 1;
+
+      // 1. Build Header
+      riffle.push(200, 10000, trackCount, 0, 69, 0, 0, 1, 0, 0, 0, 3);
+      
+      // Pad intermediate header values
+      for(let i = 0; i < 19; i++) riffle.push(0);
+      
+      // Inject track duration blocks
+      for(let i = 0; i < trackCount; i++) riffle.push(4000);
+      
+      // Pad to note data start
+      for(let i = 0; i < 20; i++) riffle.push(0);
+
+      // 2. Build Track Sequences
+      activeTracks.forEach(track => {
+        // Standardize to 16 steps for baseline conversion
+        const steps = 16;
+        const pitches = new Array(steps).fill(0);
+        const gates = new Array(steps).fill(-1);
+        const durations = new Array(steps).fill(0);
+        const velocities = new Array(steps).fill(0);
+
+        track.notes.forEach(note => {
+          // Map temporal position to grid step
+          const stepIndex = Math.floor((note.time / midi.duration) * steps) % steps;
+          
+          pitches[stepIndex] = note.midi;
+          gates[stepIndex] = 0; // 0 = active trigger
+          durations[stepIndex] = Math.round(note.duration * 1000);
+          velocities[stepIndex] = Math.round(note.velocity * 127);
+        });
+
+        // Append sequential lanes for this track
+        riffle.push(...pitches, ...gates, ...durations, ...velocities);
+      });
+
+      return riffle.join(',');
+    }
   </script>
 </body>
 </html>
