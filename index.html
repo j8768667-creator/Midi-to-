@@ -7,7 +7,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>MIDI to Riffer (.riffle) Converter</title>
   <style>
-    /* Reset & iPad Touch Ergonomics */
     *, *::before, *::after {
       box-sizing: border-box;
       user-select: none;
@@ -16,17 +15,17 @@
     }
 
     :root {
-      --bg: #121316;
-      --surface: #1b1c20;
-      --surface-border: #2c2d35;
-      --text: #eceff4;
-      --text-dim: #8b92a5;
-      --accent: #3b82f6;
-      --accent-hover: #2563eb;
-      --lane-pitch: #10b981;
-      --lane-dur: #f59e0b;
-      --lane-vel: #ec4899;
-      --lane-rest: #23252b;
+      --bg: #0f1115;
+      --panel: #16181e;
+      --panel-border: #262933;
+      --text: #e2e8f0;
+      --text-muted: #848d9f;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --active-cell: #10b981;
+      --active-dur: #f59e0b;
+      --active-vel: #ec4899;
+      --cell-empty: #1a1d24;
     }
 
     html, body {
@@ -37,7 +36,6 @@
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       touch-action: manipulation;
-      overflow-x: hidden;
     }
 
     body {
@@ -52,9 +50,9 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid var(--surface-border);
-      flex-wrap: wrap;
+      border-bottom: 1px solid var(--panel-border);
       gap: 12px;
+      flex-wrap: wrap;
     }
 
     .title-area h1 {
@@ -67,32 +65,31 @@
     .title-area p {
       margin: 2px 0 0 0;
       font-size: 0.8rem;
-      color: var(--text-dim);
+      color: var(--text-muted);
     }
 
-    /* 44x44px minimum touch targets */
-    .btn, .file-label {
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* 44x44px Minimum Touch Target Standard */
+    .btn, .file-trigger {
       min-height: 44px;
       min-width: 44px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 8px 18px;
+      padding: 0 18px;
       border-radius: 6px;
       font-size: 0.9rem;
       font-weight: 600;
-      border: 1px solid var(--surface-border);
-      background-color: var(--surface);
+      border: 1px solid var(--panel-border);
+      background-color: var(--panel);
       color: var(--text);
       cursor: pointer;
       touch-action: manipulation;
-      transition: background-color 0.15s ease, border-color 0.15s ease;
-    }
-
-    .btn:active, .file-label:active {
-      background-color: var(--accent);
-      border-color: var(--accent);
-      color: #ffffff;
     }
 
     .btn-primary {
@@ -101,12 +98,12 @@
       color: #ffffff;
     }
 
-    .btn-primary:active {
-      background-color: var(--accent-hover);
+    .btn:active, .file-trigger:active {
+      opacity: 0.8;
     }
 
-    .btn:disabled, .file-label.disabled {
-      opacity: 0.45;
+    .btn:disabled {
+      opacity: 0.35;
       cursor: not-allowed;
       pointer-events: none;
     }
@@ -130,100 +127,95 @@
       padding: 16px 0;
     }
 
-    .dashboard-panel {
-      background: var(--surface);
-      border: 1px solid var(--surface-border);
+    .meta-bar {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
       border-radius: 8px;
-      padding: 14px 16px;
+      padding: 12px 16px;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 12px;
       align-items: center;
     }
 
-    .metric-box {
+    .meta-item {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 2px;
     }
 
-    .metric-label {
+    .meta-item span:first-child {
       font-size: 0.75rem;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-dim);
+      color: var(--text-muted);
     }
 
-    .metric-value {
+    .meta-item span:last-child {
       font-size: 1.1rem;
       font-weight: 700;
-      color: var(--text);
     }
 
-    .settings-control {
+    .control-group {
       display: flex;
       align-items: center;
       gap: 8px;
-      min-height: 44px;
     }
 
-    .settings-control label {
+    .control-group label {
       font-size: 0.85rem;
-      color: var(--text-dim);
+      color: var(--text-muted);
     }
 
     select, input[type="number"] {
       min-height: 44px;
-      padding: 4px 12px;
+      padding: 0 12px;
       background: var(--bg);
       color: var(--text);
-      border: 1px solid var(--surface-border);
+      border: 1px solid var(--panel-border);
       border-radius: 6px;
       font-size: 0.95rem;
-      outline: none;
       touch-action: manipulation;
     }
 
-    /* Lanes View */
-    .lanes-container {
-      background: var(--surface);
-      border: 1px solid var(--surface-border);
+    .lanes-scroll-wrap {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
       border-radius: 8px;
-      padding: 14px 16px;
+      padding: 14px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      overflow: hidden;
-    }
-
-    .lane-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .lane-scroll {
+      gap: 14px;
       overflow-x: auto;
-      overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
-      padding-bottom: 8px;
     }
 
-    .lane-grid {
+    .lane-block {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: max-content;
+    }
+
+    .lane-heading {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .lane-row {
       display: grid;
       grid-auto-flow: column;
       grid-auto-columns: minmax(44px, 1fr);
       gap: 4px;
-      width: max-content;
     }
 
-    .lane-cell {
+    .step-cell {
       min-width: 44px;
-      height: 52px;
-      background-color: var(--lane-rest);
-      border: 1px solid var(--surface-border);
+      height: 48px;
+      background: var(--cell-empty);
+      border: 1px solid var(--panel-border);
       border-radius: 4px;
       display: flex;
       flex-direction: column;
@@ -231,47 +223,42 @@
       justify-content: center;
       font-size: 0.75rem;
       font-weight: 600;
-      color: var(--text);
-      touch-action: manipulation;
     }
 
-    .lane-cell.active-pitch {
-      background-color: rgba(16, 185, 129, 0.2);
-      border-color: var(--lane-pitch);
-      color: var(--lane-pitch);
-    }
-
-    .lane-cell.active-dur {
-      background-color: rgba(245, 158, 11, 0.2);
-      border-color: var(--lane-dur);
-      color: var(--lane-dur);
-    }
-
-    .lane-cell.active-vel {
-      background-color: rgba(236, 72, 153, 0.2);
-      border-color: var(--lane-vel);
-      color: var(--lane-vel);
-    }
-
-    .cell-step {
+    .step-cell span:first-child {
       font-size: 0.65rem;
-      color: var(--text-dim);
-      margin-bottom: 2px;
+      color: var(--text-muted);
+    }
+
+    .step-cell.active-pitch {
+      border-color: var(--active-cell);
+      color: var(--active-cell);
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    .step-cell.active-dur {
+      border-color: var(--active-dur);
+      color: var(--active-dur);
+      background: rgba(245, 158, 11, 0.15);
+    }
+
+    .step-cell.active-vel {
+      border-color: var(--active-vel);
+      color: var(--active-vel);
+      background: rgba(236, 72, 153, 0.15);
     }
 
     footer {
-      padding: 12px 0 4px;
-      border-top: 1px solid var(--surface-border);
+      padding-top: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-size: 0.8rem;
-      color: var(--text-dim);
-      flex-wrap: wrap;
-      gap: 8px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--panel-border);
     }
 
-    #statusMessage {
+    #status {
       font-weight: 500;
       color: var(--accent);
     }
@@ -281,92 +268,96 @@
 
   <header>
     <div class="title-area">
-      <h1>Riffer MIDI Transposer</h1>
-      <p>Precision converter for Standard MIDI to Audiomodern .riffle format</p>
+      <h1>Audiomodern Riffer Transposer</h1>
+      <p>MIDI to 3,456-Token Fixed Structure .riffle Format</p>
     </div>
-    <div style="display: flex; gap: 8px;">
-      <label class="file-label" for="midiFileInput">
-        <span>Load MIDI</span>
-        <input type="file" id="midiFileInput" accept=".mid,.midi,audio/midi,audio/x-midi">
+    <div class="header-actions">
+      <label class="file-trigger" for="midiFile">
+        <span>Open MIDI</span>
+        <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi">
       </label>
-      <button type="button" class="btn" id="playBtn" disabled>Preview</button>
+      <button type="button" class="btn" id="previewBtn" disabled>Preview</button>
       <button type="button" class="btn btn-primary" id="exportBtn" disabled>Export .riffle</button>
     </div>
   </header>
 
   <main>
-    <section class="dashboard-panel">
-      <div class="metric-box">
-        <span class="metric-label">BPM</span>
-        <span class="metric-value" id="bpmDisplay">120.0</span>
+    <section class="meta-bar">
+      <div class="meta-item">
+        <span>Tempo</span>
+        <span id="tempoText">120.0 BPM</span>
       </div>
-      <div class="metric-box">
-        <span class="metric-label">Total Steps</span>
-        <span class="metric-value" id="stepsDisplay">16</span>
+      <div class="meta-item">
+        <span>Length</span>
+        <span id="stepsText">16 Steps</span>
       </div>
-      <div class="metric-box">
-        <span class="metric-label">Detected Root / Key</span>
-        <span class="metric-value" id="rootDisplay">C (60)</span>
+      <div class="meta-item">
+        <span>Root Pitch</span>
+        <span id="rootText">C (60)</span>
       </div>
-      <div class="settings-control">
-        <label for="stepQuantize">Grid Quantize:</label>
-        <select id="stepQuantize">
-          <option value="16" selected>1/16 Note</option>
-          <option value="8">1/8 Note</option>
-          <option value="32">1/32 Note</option>
+      <div class="control-group">
+        <label for="quantizeSelect">Grid:</label>
+        <select id="quantizeSelect">
+          <option value="16" selected>1/16</option>
+          <option value="8">1/8</option>
+          <option value="32">1/32</option>
         </select>
       </div>
-      <div class="settings-control">
-        <label for="transposeOffset">Transpose:</label>
-        <input type="number" id="transposeOffset" value="0" min="-24" max="24" style="width: 70px;">
+      <div class="control-group">
+        <label for="transpose">Transpose:</label>
+        <input type="number" id="transpose" value="0" min="-24" max="24" style="width: 75px;">
       </div>
     </section>
 
-    <section class="lanes-container">
-      <div>
-        <div class="lane-title">
-          <span>Pitch Sequence (MIDI)</span>
-          <span style="color: var(--lane-pitch);" id="pitchActiveCount">0 Active</span>
-        </div>
-        <div class="lane-scroll">
-          <div class="lane-grid" id="pitchGrid"></div>
-        </div>
+    <section class="lanes-scroll-wrap">
+      <div class="lane-block">
+        <div class="lane-heading">Pitch Lane (Steps 1–64)</div>
+        <div class="lane-row" id="pitchRow"></div>
       </div>
-
-      <div>
-        <div class="lane-title">
-          <span>Duration Lane (Milliseconds)</span>
-          <span style="color: var(--lane-dur);">Step Durations</span>
-        </div>
-        <div class="lane-scroll">
-          <div class="lane-grid" id="durGrid"></div>
-        </div>
+      <div class="lane-block">
+        <div class="lane-heading">Duration Lane (Milliseconds)</div>
+        <div class="lane-row" id="durRow"></div>
       </div>
-
-      <div>
-        <div class="lane-title">
-          <span>Velocity Lane (0-127)</span>
-          <span style="color: var(--lane-vel);">Intensity</span>
-        </div>
-        <div class="lane-scroll">
-          <div class="lane-grid" id="velGrid"></div>
-        </div>
+      <div class="lane-block">
+        <div class="lane-heading">Velocity Lane (0–127)</div>
+        <div class="lane-row" id="velRow"></div>
       </div>
     </section>
   </main>
 
   <footer>
-    <span id="statusMessage">Awaiting MIDI input...</span>
-    <span>Optimized for iPad 11" (Touch 44px Target Standard)</span>
+    <span id="status">Select a standard MIDI file to begin.</span>
+    <span>Preset Standard: Fixed 3,456 Integers</span>
   </footer>
 
   <script>
-    /* Self-Contained Web Audio Context */
+    const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    
+    // Exact schema based on native Riffer presets:
+    // Fixed total length: 3,456 integers
+    // Pitches start at index 700
+    // Durations start at index 1000
+    // Velocities start at index 1300
+    const RIFFLE_ARRAY_LEN = 3456;
+    const PITCH_START = 700;
+    const DUR_START = 1000;
+    const VEL_START = 1300;
+
+    const state = {
+      bpm: 120.0,
+      steps: 16,
+      rootNote: 60,
+      pitches: new Array(64).fill(0),
+      durations: new Array(64).fill(0),
+      velocities: new Array(64).fill(0),
+      gridDivision: 4 // 16th note default
+    };
+
     let audioCtx = null;
-    function getAudioContext() {
+    function getAudioCtx() {
       if (!audioCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContextClass();
+        const AudioClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioClass();
       }
       if (audioCtx.state === 'suspended') {
         audioCtx.resume();
@@ -374,345 +365,295 @@
       return audioCtx;
     }
 
-    /* Core Riffer State Model */
-    const state = {
-      bpm: 120.0,
-      totalSteps: 16,
-      rootMidi: 60,
-      pitches: new Array(16).fill(0),
-      durations: new Array(16).fill(0),
-      velocities: new Array(16).fill(0),
-      quantizeStepsPerQuarter: 4 // 16th notes default
-    };
+    // Standard Binary MIDI Parser (Format 0/1)
+    function parseMidiFile(buffer) {
+      const dv = new DataView(buffer);
+      let p = 0;
 
-    /* MIDI Parser Implementation (Standard MIDI Format 0/1 binary reader) */
-    function parseMidi(arrayBuffer) {
-      const data = new DataView(arrayBuffer);
-      let offset = 0;
-
-      function readStr(len) {
-        let str = "";
-        for (let i = 0; i < len; i++) str += String.fromCharCode(data.getUint8(offset++));
-        return str;
+      function readAscii(len) {
+        let s = "";
+        for (let i = 0; i < len; i++) s += String.fromCharCode(dv.getUint8(p++));
+        return s;
       }
 
-      if (readStr(4) !== "MThd") throw new Error("Not a valid MIDI file header.");
-      const headerLength = data.getUint32(offset); offset += 4;
-      const format = data.getUint16(offset); offset += 2;
-      const numTracks = data.getUint16(offset); offset += 2;
-      const timeDivision = data.getUint16(offset); offset += 2;
-      offset += (headerLength - 6); // skip any extended header bytes
+      if (readAscii(4) !== "MThd") throw new Error("File is not a valid standard MIDI file.");
+      const headerLen = dv.getUint32(p); p += 4;
+      const format = dv.getUint16(p); p += 2;
+      const numTracks = dv.getUint16(p); p += 2;
+      const division = dv.getUint16(p); p += 2;
+      p += (headerLen - 6);
 
-      const ticksPerBeat = (timeDivision & 0x8000) === 0 ? timeDivision : 480;
-      let tempo = 500000; // default 120 bpm (microseconds per quarter note)
-      const allEvents = [];
+      const ticksPerQuarter = (division & 0x8000) === 0 ? division : 480;
+      let microsecondsPerQuarter = 500000; // 120 BPM
+      const rawEvents = [];
 
       for (let t = 0; t < numTracks; t++) {
-        if (offset >= data.byteLength) break;
-        const trackHeader = readStr(4);
-        const trackLength = data.getUint32(offset); offset += 4;
-        if (trackHeader !== "MTrk") {
-          offset += trackLength;
+        if (p >= dv.byteLength) break;
+        const trackId = readAscii(4);
+        const trackLen = dv.getUint32(p); p += 4;
+        if (trackId !== "MTrk") {
+          p += trackLen;
           continue;
         }
 
-        let trackOffset = offset;
-        const trackEnd = trackOffset + trackLength;
+        let trackPos = p;
+        const trackEnd = trackPos + trackLen;
         let runningStatus = 0;
-        let currentTick = 0;
+        let trackTick = 0;
 
-        while (trackOffset < trackEnd) {
-          // Read variable-length delta time
+        while (trackPos < trackEnd) {
           let delta = 0;
           while (true) {
-            const b = data.getUint8(trackOffset++);
+            const b = dv.getUint8(trackPos++);
             delta = (delta << 7) | (b & 0x7F);
             if (!(b & 0x80)) break;
           }
-          currentTick += delta;
+          trackTick += delta;
 
-          let status = data.getUint8(trackOffset);
+          let status = dv.getUint8(trackPos);
           if (status >= 0x80) {
-            trackOffset++;
+            trackPos++;
             runningStatus = status;
           } else {
             status = runningStatus;
           }
 
-          const msgType = status >> 4;
-          const channel = status & 0x0F;
+          const type = status >> 4;
 
           if (status === 0xFF) {
-            // Meta event
-            const metaType = data.getUint8(trackOffset++);
+            const metaType = dv.getUint8(trackPos++);
             let metaLen = 0;
             while (true) {
-              const b = data.getUint8(trackOffset++);
+              const b = dv.getUint8(trackPos++);
               metaLen = (metaLen << 7) | (b & 0x7F);
               if (!(b & 0x80)) break;
             }
             if (metaType === 0x51 && metaLen === 3) {
-              tempo = (data.getUint8(trackOffset) << 16) | (data.getUint8(trackOffset + 1) << 8) | data.getUint8(trackOffset + 2);
+              microsecondsPerQuarter = (dv.getUint8(trackPos) << 16) | (dv.getUint8(trackPos + 1) << 8) | dv.getUint8(trackPos + 2);
             }
-            trackOffset += metaLen;
+            trackPos += metaLen;
           } else if (status === 0xF0 || status === 0xF7) {
-            // Sysex event
             let sysLen = 0;
             while (true) {
-              const b = data.getUint8(trackOffset++);
+              const b = dv.getUint8(trackPos++);
               sysLen = (sysLen << 7) | (b & 0x7F);
               if (!(b & 0x80)) break;
             }
-            trackOffset += sysLen;
-          } else if (msgType === 0x9) {
-            // Note On
-            const note = data.getUint8(trackOffset++);
-            const vel = data.getUint8(trackOffset++);
-            allEvents.push({ tick: currentTick, type: vel > 0 ? 'on' : 'off', note, velocity: vel });
-          } else if (msgType === 0x8) {
-            // Note Off
-            const note = data.getUint8(trackOffset++);
-            const vel = data.getUint8(trackOffset++);
-            allEvents.push({ tick: currentTick, type: 'off', note, velocity: 0 });
-          } else if (msgType === 0xA || msgType === 0xB || msgType === 0xE) {
-            trackOffset += 2;
-          } else if (msgType === 0xC || msgType === 0xD) {
-            trackOffset += 1;
+            trackPos += sysLen;
+          } else if (type === 0x9) {
+            const note = dv.getUint8(trackPos++);
+            const vel = dv.getUint8(trackPos++);
+            rawEvents.push({ tick: trackTick, type: vel > 0 ? 'on' : 'off', note, vel });
+          } else if (type === 0x8) {
+            const note = dv.getUint8(trackPos++);
+            dv.getUint8(trackPos++);
+            rawEvents.push({ tick: trackTick, type: 'off', note, vel: 0 });
+          } else if (type === 0xA || type === 0xB || type === 0xE) {
+            trackPos += 2;
+          } else if (type === 0xC || type === 0xD) {
+            trackPos += 1;
           }
         }
-        offset = trackEnd;
+        p = trackEnd;
       }
 
-      return { ticksPerBeat, tempo, events: allEvents };
+      return { ticksPerQuarter, tempo: microsecondsPerQuarter, events: rawEvents };
     }
 
-    /* Convert Extracted MIDI Events to Riffer Stepped Sequences */
-    function processMidiToRiffer(parsedMidi) {
-      const bpm = Math.round((60000000 / parsedMidi.tempo) * 10) / 10;
-      state.bpm = bpm;
+    function processMidi(parsed) {
+      state.bpm = Math.round((60000000 / parsed.tempo) * 10) / 10;
+      const ticksPerStep = parsed.ticksPerQuarter / state.gridDivision;
+      const onMap = new Map();
+      const notes = [];
 
-      const ticksPerStep = parsedMidi.ticksPerBeat / (state.quantizeStepsPerQuarter);
-      const activeNotes = new Map();
-      const extractedSteps = [];
+      parsed.events.sort((a, b) => a.tick - b.tick);
 
-      // Sort events chronologically
-      parsedMidi.events.sort((a, b) => a.tick - b.tick);
-
-      parsedMidi.events.forEach(ev => {
-        if (ev.type === 'on') {
-          activeNotes.set(ev.note, { startTick: ev.tick, vel: ev.velocity });
-        } else if (ev.type === 'off' && activeNotes.has(ev.note)) {
-          const noteStart = activeNotes.get(ev.note);
-          const durationTicks = Math.max(1, ev.tick - noteStart.startTick);
-          const stepIndex = Math.round(noteStart.startTick / ticksPerStep);
-          const stepDurationMs = Math.round((durationTicks / parsedMidi.ticksPerBeat) * (60000 / bpm));
-
-          extractedSteps.push({
-            step: stepIndex,
-            pitch: ev.note,
-            velocity: noteStart.vel,
-            durationMs: stepDurationMs
-          });
-          activeNotes.delete(ev.note);
+      parsed.events.forEach(e => {
+        if (e.type === 'on') {
+          onMap.set(e.note, { tick: e.tick, vel: e.vel });
+        } else if (e.type === 'off' && onMap.has(e.note)) {
+          const start = onMap.get(e.note);
+          const durTicks = Math.max(1, e.tick - start.tick);
+          const stepIndex = Math.round(start.tick / ticksPerStep);
+          const durMs = Math.round((durTicks / parsed.ticksPerQuarter) * (60000 / state.bpm));
+          notes.push({ step: stepIndex, pitch: e.note, vel: start.vel, dur: durMs });
+          onMap.delete(e.note);
         }
       });
 
-      if (extractedSteps.length === 0) {
-        throw new Error("No MIDI note events detected in file.");
-      }
+      if (notes.length === 0) throw new Error("No MIDI note messages found.");
 
-      // Determine step capacity: nearest 16, 32, or 64 steps
-      const maxStep = Math.max(...extractedSteps.map(s => s.step));
-      let patternLen = 16;
-      if (maxStep >= 32) patternLen = 64;
-      else if (maxStep >= 16) patternLen = 32;
+      const maxStep = Math.max(...notes.map(n => n.step));
+      let stepCapacity = 16;
+      if (maxStep >= 32) stepCapacity = 64;
+      else if (maxStep >= 16) stepCapacity = 32;
 
-      state.totalSteps = patternLen;
-      state.pitches = new Array(patternLen).fill(0);
-      state.durations = new Array(patternLen).fill(0);
-      state.velocities = new Array(patternLen).fill(0);
+      state.steps = stepCapacity;
+      state.pitches.fill(0);
+      state.durations.fill(0);
+      state.velocities.fill(0);
 
-      const transpose = parseInt(document.getElementById('transposeOffset').value, 10) || 0;
+      const transposeOffset = parseInt(document.getElementById('transpose').value, 10) || 0;
 
-      // Populate quantized step lanes
-      extractedSteps.forEach(s => {
-        if (s.step < patternLen) {
-          state.pitches[s.step] = Math.min(127, Math.max(0, s.pitch + transpose));
-          state.durations[s.step] = s.durationMs;
-          state.velocities[s.step] = s.velocity;
+      notes.forEach(n => {
+        if (n.step < stepCapacity) {
+          state.pitches[n.step] = Math.max(0, Math.min(127, n.pitch + transposeOffset));
+          state.durations[n.step] = n.dur;
+          state.velocities[n.step] = n.vel;
         }
       });
 
-      // Default durations for unmeasured active steps
-      const standardStepDurationMs = Math.round(60000 / (bpm * state.quantizeStepsPerQuarter));
-      for (let i = 0; i < patternLen; i++) {
+      const stepDurationMs = Math.round(60000 / (state.bpm * state.gridDivision));
+      for (let i = 0; i < stepCapacity; i++) {
         if (state.pitches[i] > 0 && state.durations[i] === 0) {
-          state.durations[i] = standardStepDurationMs;
+          state.durations[i] = stepDurationMs;
         }
       }
 
-      // Detect reference root pitch
-      const activePitches = state.pitches.filter(p => p > 0);
-      state.rootMidi = activePitches.length > 0 ? activePitches[0] : 60;
+      const activePitch = state.pitches.find(p => p > 0);
+      state.rootNote = activePitch || 60;
 
-      renderUI();
+      render();
     }
 
-    /* DOM Lane Rendering (Strict 44px Minimum Touch Targets) */
-    function renderUI() {
-      document.getElementById('bpmDisplay').textContent = state.bpm.toFixed(1);
-      document.getElementById('stepsDisplay').textContent = state.totalSteps;
-      const noteNames = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-      document.getElementById('rootDisplay').textContent = `${noteNames[state.rootMidi % 12]} (${state.rootMidi})`;
+    function render() {
+      document.getElementById('tempoText').textContent = `${state.bpm.toFixed(1)} BPM`;
+      document.getElementById('stepsText').textContent = `${state.steps} Steps`;
+      document.getElementById('rootText').textContent = `${NOTE_NAMES[state.rootNote % 12]} (${state.rootNote})`;
 
-      const pitchGrid = document.getElementById('pitchGrid');
-      const durGrid = document.getElementById('durGrid');
-      const velGrid = document.getElementById('velGrid');
+      const pRow = document.getElementById('pitchRow');
+      const dRow = document.getElementById('durRow');
+      const vRow = document.getElementById('velRow');
 
-      pitchGrid.innerHTML = '';
-      durGrid.innerHTML = '';
-      velGrid.innerHTML = '';
+      pRow.innerHTML = '';
+      dRow.innerHTML = '';
+      vRow.innerHTML = '';
 
       let activeCount = 0;
 
-      for (let i = 0; i < state.totalSteps; i++) {
+      for (let i = 0; i < state.steps; i++) {
         const p = state.pitches[i];
         const d = state.durations[i];
         const v = state.velocities[i];
 
         if (p > 0) activeCount++;
 
-        // Pitch Cell
         const pCell = document.createElement('div');
-        pCell.className = `lane-cell ${p > 0 ? 'active-pitch' : ''}`;
-        pCell.innerHTML = `<span class="cell-step">${i + 1}</span><span>${p > 0 ? noteNames[p % 12] + Math.floor(p / 12 - 1) : '-'}</span>`;
-        pitchGrid.appendChild(pCell);
+        pCell.className = `step-cell ${p > 0 ? 'active-pitch' : ''}`;
+        pCell.innerHTML = `<span>${i + 1}</span><span>${p > 0 ? NOTE_NAMES[p % 12] + Math.floor(p / 12 - 1) : '-'}</span>`;
+        pRow.appendChild(pCell);
 
-        // Duration Cell
         const dCell = document.createElement('div');
-        dCell.className = `lane-cell ${d > 0 ? 'active-dur' : ''}`;
-        dCell.innerHTML = `<span class="cell-step">${i + 1}</span><span>${d > 0 ? d : '-'}</span>`;
-        durGrid.appendChild(dCell);
+        dCell.className = `step-cell ${d > 0 ? 'active-dur' : ''}`;
+        dCell.innerHTML = `<span>${i + 1}</span><span>${d > 0 ? d : '-'}</span>`;
+        dRow.appendChild(dCell);
 
-        // Velocity Cell
         const vCell = document.createElement('div');
-        vCell.className = `lane-cell ${v > 0 ? 'active-vel' : ''}`;
-        vCell.innerHTML = `<span class="cell-step">${i + 1}</span><span>${v > 0 ? v : '-'}</span>`;
-        velGrid.appendChild(vCell);
+        vCell.className = `step-cell ${v > 0 ? 'active-vel' : ''}`;
+        vCell.innerHTML = `<span>${i + 1}</span><span>${v > 0 ? v : '-'}</span>`;
+        vRow.appendChild(vCell);
       }
 
-      document.getElementById('pitchActiveCount').textContent = `${activeCount} Active`;
-      document.getElementById('playBtn').disabled = activeCount === 0;
+      document.getElementById('previewBtn').disabled = activeCount === 0;
       document.getElementById('exportBtn').disabled = activeCount === 0;
     }
 
-    /* Audiomodern .riffle File Formatter */
-    function generateRiffleString() {
-      // Header Structure verified from genuine .riffle files:
-      // index 0: 200, index 1: BPM * 100, index 2: Steps count, index 4: Root MIDI, indices 31-38: step ticks (4000)
-      const data = [];
-      data.push(200);
-      data.push(Math.round(state.bpm * 100));
-      data.push(state.totalSteps);
-      data.push(0);
-      data.push(state.rootMidi);
-      
-      // Pad standard configuration fields up to index 30
-      while (data.length < 31) data.push(0);
+    // Fixed 3456-Length Riffer Generator Function
+    function buildRiffleBuffer() {
+      const arr = new Array(RIFFLE_ARRAY_LEN).fill(0);
 
-      // Loop step markers (indices 31 to 38 = 4000)
-      for (let i = 0; i < 8; i++) data.push(4000);
+      // Header Indices
+      arr[0] = 200; // Riffer version token
+      arr[1] = Math.round(state.bpm * 100); // BPM * 100
+      arr[2] = state.steps; // Number of steps
+      arr[3] = 0;
+      arr[4] = state.rootNote; // Scale / Root reference
+      arr[7] = 1;
+      arr[11] = 3;
+      arr[13] = 1;
+      arr[16] = 2;
+      arr[19] = 9;
+      arr[29] = 1;
 
-      // Padding to header end
-      while (data.length < 50) data.push(0);
-
-      // Lane 1: Pitch sequence stream (appended with resting markers)
-      for (let i = 0; i < state.totalSteps; i++) {
-        data.push(state.pitches[i]);
-      }
-      data.push(-1, 0, -1); // Stream lane break tokens
-
-      // Lane 2: Duration stream in milliseconds
-      for (let i = 0; i < state.totalSteps; i++) {
-        data.push(state.durations[i]);
-      }
-      data.push(-1, 0, -1);
-
-      // Lane 3: Velocity sequence stream
-      for (let i = 0; i < state.totalSteps; i++) {
-        data.push(state.velocities[i]);
-      }
-      data.push(-1, 0, -1);
-
-      // Padding stream to ensure compatibility with Audiomodern parser length
-      while (data.length < 1024) {
-        data.push(0);
+      // Loop Step Markers (Indices 31..38 set to 4000)
+      for (let i = 31; i <= 38; i++) {
+        arr[i] = 4000;
       }
 
-      return data.join(',');
+      arr[47] = 65;
+      arr[49] = 8;
+
+      // Populate Step Lanes
+      for (let i = 0; i < state.steps; i++) {
+        arr[PITCH_START + i] = state.pitches[i];
+        arr[DUR_START + i] = state.durations[i];
+        arr[VEL_START + i] = state.velocities[i];
+      }
+
+      // Exact Delimiter Tokens Required by Riffer
+      arr[799] = -1;
+      arr[1099] = -1;
+      arr[1399] = -1;
+
+      // Format as comma-separated string with strictly no trailing comma
+      return arr.join(',');
     }
 
-    /* Event Listeners & Hardware/Touch Handling */
-    const fileInput = document.getElementById('midiFileInput');
-    const statusMsg = document.getElementById('statusMessage');
+    // Touch Event Wire-ups
+    const fileInput = document.getElementById('midiFile');
+    const statusText = document.getElementById('status');
 
     fileInput.addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
+      const f = e.target.files[0];
+      if (!f) return;
 
-      statusMsg.textContent = `Reading ${file.name}...`;
+      statusText.textContent = `Processing ${f.name}...`;
       const reader = new FileReader();
 
       reader.onload = function(evt) {
         try {
-          const parsed = parseMidi(evt.target.result);
-          processMidiToRiffer(parsed);
-          statusMsg.textContent = `Parsed ${file.name} successfully.`;
+          const parsed = parseMidiFile(evt.target.result);
+          processMidi(parsed);
+          statusText.textContent = `Loaded ${f.name} successfully.`;
         } catch (err) {
-          statusMsg.textContent = `Error: ${err.message}`;
+          statusText.textContent = `Error: ${err.message}`;
         }
       };
 
-      reader.onerror = function() {
-        statusMsg.textContent = "Failed to read file.";
-      };
-
-      reader.readAsArrayBuffer(file);
-      // Reset input value to allow re-selection of the same file
-      this.value = '';
+      reader.onerror = () => { statusText.textContent = "Failed reading file."; };
+      reader.readAsArrayBuffer(f);
+      this.value = ''; // Reset input to allow reloading same file
     });
 
-    document.getElementById('stepQuantize').addEventListener('change', function(e) {
-      state.quantizeStepsPerQuarter = parseInt(e.target.value, 10) / 4;
+    document.getElementById('quantizeSelect').addEventListener('change', (e) => {
+      state.gridDivision = parseInt(e.target.value, 10) / 4;
     });
 
-    document.getElementById('transposeOffset').addEventListener('input', function() {
-      if (state.pitches.some(p => p > 0)) {
-        renderUI();
-      }
+    document.getElementById('transpose').addEventListener('input', () => {
+      if (state.pitches.some(p => p > 0)) render();
     });
 
-    /* Touch-Safe Web Audio Synthesizer Preview */
-    document.getElementById('playBtn').addEventListener('pointerdown', function() {
-      const ctx = getAudioContext();
-      const startTime = ctx.currentTime + 0.05;
-      const stepSeconds = (60 / state.bpm) / (state.quantizeStepsPerQuarter);
+    // Touch-safe Web Audio synthesizer preview
+    document.getElementById('previewBtn').addEventListener('pointerdown', () => {
+      const ctx = getAudioCtx();
+      const start = ctx.currentTime + 0.05;
+      const stepDuration = (60 / state.bpm) / state.gridDivision;
 
-      for (let i = 0; i < state.totalSteps; i++) {
-        const pitch = state.pitches[i];
-        const vel = state.velocities[i];
-        if (pitch > 0 && vel > 0) {
-          const noteTime = startTime + (i * stepSeconds);
+      for (let i = 0; i < state.steps; i++) {
+        const p = state.pitches[i];
+        const v = state.velocities[i];
+        if (p > 0 && v > 0) {
+          const noteTime = start + (i * stepDuration);
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
 
-          const freq = 440 * Math.pow(2, (pitch - 69) / 12);
+          const freq = 440 * Math.pow(2, (p - 69) / 12);
           osc.frequency.setValueAtTime(freq, noteTime);
 
-          const gainLevel = (vel / 127) * 0.25;
-          const durSec = Math.max(0.05, (state.durations[i] || (stepSeconds * 1000)) / 1000);
+          const gainVal = (v / 127) * 0.25;
+          const durSec = Math.max(0.04, (state.durations[i] || (stepDuration * 1000)) / 1000);
 
-          gain.gain.setValueAtTime(gainLevel, noteTime);
+          gain.gain.setValueAtTime(gainVal, noteTime);
           gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + durSec);
 
           osc.connect(gain);
@@ -722,25 +663,25 @@
           osc.stop(noteTime + durSec);
         }
       }
-      statusMsg.textContent = "Playing preview...";
+      statusText.textContent = "Playing preview...";
     });
 
-    /* Blob File Export */
-    document.getElementById('exportBtn').addEventListener('pointerdown', function() {
+    // Standard Blob Export
+    document.getElementById('exportBtn').addEventListener('pointerdown', () => {
       try {
-        const riffleContent = generateRiffleString();
-        const blob = new Blob([riffleContent], { type: 'text/plain;charset=utf-8' });
+        const textData = buildRiffleBuffer();
+        const blob = new Blob([textData], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `transposed_riffle_${Date.now()}.riffle`;
+        a.download = `transposed_riff_${Date.now()}.riffle`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        statusMsg.textContent = "Export complete (.riffle created).";
+        statusText.textContent = "Exported 3,456-token .riffle file successfully.";
       } catch (err) {
-        statusMsg.textContent = `Export failed: ${err.message}`;
+        statusText.textContent = `Export failed: ${err.message}`;
       }
     });
   </script>
