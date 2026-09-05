@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MIDI to .riffle Converter</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Note: @tonejs/midi is used to accurately parse the binary MIDI file -->
   <script src="https://unpkg.com/@tonejs/midi"></script>
   <style>
     /* Prevent double-tap zoom on iPadOS */
@@ -20,7 +19,7 @@
       min-width: 44px;
     }
     
-    /* Custom styling for the file input wrapper */
+    /* Absolute overlay for file input to ensure it is fully interactive */
     .file-input-wrapper input[type="file"] {
       position: absolute;
       inset: 0;
@@ -28,28 +27,29 @@
       height: 100%;
       opacity: 0;
       cursor: pointer;
+      z-index: 10;
     }
   </style>
 </head>
-<body class="bg-gray-950 text-gray-100 font-sans h-screen flex flex-col items-center justify-center p-6 antialiased">
+<body class="bg-zinc-950 text-zinc-100 font-sans h-screen w-screen flex flex-col items-center justify-center p-6 antialiased overflow-hidden">
 
-  <main class="w-full max-w-md bg-gray-900 border border-gray-800 rounded-xl shadow-2xl p-8 flex flex-col gap-6">
+  <main class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-8 flex flex-col gap-8 relative z-0">
     <header class="text-center">
       <h1 class="text-2xl font-semibold tracking-tight text-white">MIDI to Riffle</h1>
-      <p class="text-sm text-gray-400 mt-1">Select a standard .mid file to convert</p>
+      <p class="text-sm text-zinc-400 mt-2">64-Step Array Quantization</p>
     </header>
 
     <!-- File Selection -->
-    <div class="relative file-input-wrapper bg-gray-800 hover:bg-gray-700 border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center touch-target transition-colors">
+    <div class="relative file-input-wrapper bg-zinc-800 hover:bg-zinc-700 border-2 border-dashed border-zinc-600 rounded-lg flex items-center justify-center touch-target transition-colors">
       <input type="file" id="midiInput" accept=".mid,.midi,audio/midi,audio/x-midi" aria-label="Upload MIDI File">
-      <span id="fileLabel" class="text-gray-300 font-medium pointer-events-none px-4 py-3">Tap to Select MIDI File</span>
+      <span id="fileLabel" class="text-zinc-300 font-medium pointer-events-none px-4 py-3">Tap to Select .mid File</span>
     </div>
 
     <!-- Error/Status Output -->
-    <div id="statusOutput" class="text-sm text-center font-mono h-6 text-emerald-400"></div>
+    <div id="statusOutput" class="text-sm text-center font-mono h-6 text-emerald-400 flex items-center justify-center" aria-live="polite"></div>
 
     <!-- Action Button -->
-    <button id="convertBtn" disabled class="touch-target w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold rounded-lg transition-colors flex items-center justify-center">
+    <button id="convertBtn" disabled class="touch-target w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border disabled:border-zinc-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center">
       Convert & Download
     </button>
   </main>
@@ -59,10 +59,11 @@
     const fileLabel = document.getElementById('fileLabel');
     const convertBtn = document.getElementById('convertBtn');
     const statusOutput = document.getElementById('statusOutput');
+    
     let loadedMidi = null;
     let fileName = 'sequence';
 
-    // Handle File Selection
+    // File Selection Handler
     midiInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -70,21 +71,23 @@
       fileLabel.textContent = file.name;
       fileName = file.name.replace(/\.[^/.]+$/, "");
       statusOutput.textContent = 'Parsing MIDI...';
+      statusOutput.className = 'text-sm text-center font-mono h-6 flex items-center justify-center text-emerald-400';
       convertBtn.disabled = true;
 
       try {
         const arrayBuffer = await file.arrayBuffer();
         loadedMidi = new Midi(arrayBuffer);
-        statusOutput.textContent = `Loaded: ${loadedMidi.tracks.length} tracks`;
-        convertBtn.disabled = false;
+        const activeTracks = loadedMidi.tracks.filter(t => t.notes.length > 0);
+        statusOutput.textContent = `Loaded: ${activeTracks.length} tracks`;
+        convertBtn.disabled = activeTracks.length === 0;
       } catch (err) {
-        statusOutput.textContent = 'Error parsing MIDI file.';
+        statusOutput.textContent = 'Error: Invalid MIDI file.';
         statusOutput.classList.replace('text-emerald-400', 'text-red-400');
-        console.error(err);
+        console.error("MIDI Parse Error:", err);
       }
     });
 
-    // Handle Conversion
+    // Conversion Handler
     convertBtn.addEventListener('click', () => {
       if (!loadedMidi) return;
       
@@ -96,51 +99,57 @@
         const a = document.createElement('a');
         a.href = url;
         a.download = `${fileName}.riffle`;
+        
+        // Append, click, and cleanup
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        
         URL.revokeObjectURL(url);
-        statusOutput.textContent = 'Download complete.';
+        
+        statusOutput.textContent = 'Download initiated.';
       } catch (err) {
         statusOutput.textContent = 'Conversion failed.';
         statusOutput.classList.replace('text-emerald-400', 'text-red-400');
-        console.error(err);
+        console.error("Conversion Error:", err);
       }
     });
 
     /**
      * Converts Tonejs/Midi structure to .riffle CSV format
-     * Note: Header padding is scaffolded based on pattern analysis.
+     * Utilizes 64-step resolution arrays based on .riffle file analysis.
      */
     function convertMidiToRiffle(midi) {
       const riffle = [];
       const activeTracks = midi.tracks.filter(t => t.notes.length > 0);
       const trackCount = activeTracks.length || 1;
+      const steps = 64;
 
-      // 1. Build Header
-      riffle.push(200, 10000, trackCount, 0, 69, 0, 0, 1, 0, 0, 0, 3);
+      // 1. Build Header (Indices 0 to 30)
+      const headerPrefix = [
+        200, 10000, trackCount, 0, 69, 0, 0, 1, 0, 0, 0, 3, 0, 1, 0, 
+        10, 7, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0
+      ];
+      riffle.push(...headerPrefix);
       
-      // Pad intermediate header values
-      for(let i = 0; i < 19; i++) riffle.push(0);
+      // 2. Track Length Metadata
+      for(let i = 0; i < trackCount; i++) {
+        riffle.push(4000);
+      }
       
-      // Inject track duration blocks
-      for(let i = 0; i < trackCount; i++) riffle.push(4000);
-      
-      // Pad to note data start
-      for(let i = 0; i < 20; i++) riffle.push(0);
+      // 3. Post-metadata Padding (115 zeros to safely bridge to sequence data)
+      for(let i = 0; i < 115; i++) {
+        riffle.push(0);
+      }
 
-      // 2. Build Track Sequences
+      // 4. Build Track Sequences (64 Steps per lane)
       activeTracks.forEach(track => {
-        // Standardize to 16 steps for baseline conversion
-        const steps = 16;
         const pitches = new Array(steps).fill(0);
         const gates = new Array(steps).fill(-1);
         const durations = new Array(steps).fill(0);
         const velocities = new Array(steps).fill(0);
 
         track.notes.forEach(note => {
-          // Map temporal position to grid step
+          // Map temporal position to 64-step grid
           const stepIndex = Math.floor((note.time / midi.duration) * steps) % steps;
           
           pitches[stepIndex] = note.midi;
@@ -149,7 +158,7 @@
           velocities[stepIndex] = Math.round(note.velocity * 127);
         });
 
-        // Append sequential lanes for this track
+        // Append 64-step sequential lanes for this track
         riffle.push(...pitches, ...gates, ...durations, ...velocities);
       });
 
