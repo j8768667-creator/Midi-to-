@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>MIDI to Riffle Converter</title>
+<title>MIDI to .riffle Converter</title>
 <style>
   :root {
     --bg: #0e1317;
@@ -108,7 +108,6 @@
     line-height: 1.35;
   }
 
-  /* 44px min-height constraint for iPadOS touch interaction */
   button, select, input[type="file"] {
     min-height: 44px;
     height: 44px;
@@ -238,13 +237,13 @@
       <div class="control-group file-box">
         <label for="templateInput">1) Structural Template .riffle (Optional)</label>
         <input type="file" id="templateInput" accept=".riffle,text/plain" />
-        <span class="hint">Upload a native .riffle preset to inherit specific scale, key, and preset engine settings.</span>
+        <span class="hint">Upload a native .riffle preset to inherit specific scale, key, and sound flags.</span>
       </div>
 
       <div class="control-group file-box">
         <label for="midiInput">2) Source MIDI File</label>
         <input type="file" id="midiInput" accept=".mid,.midi,audio/midi,audio/x-midi" />
-        <span class="hint">Supports Standard MIDI Files (Type 0 and Type 1).</span>
+        <span class="hint">Compatible with Type 0 and Type 1 Standard MIDI Files.</span>
       </div>
     </div>
 
@@ -318,7 +317,6 @@
   </div>
 
   <script>
-    // Rigorous constant boundaries verified from native .riffle structure
     const RIFFLE_ARRAY_LEN = 2944;
     const PITCH_START = 1024;
     const DUR_START   = 1536;
@@ -326,14 +324,13 @@
     const STR_START   = 2560;
     const FRET_START  = 2816;
 
-    // Guitar open strings (Standard tuning: E4=64, B3=59, G3=55, D3=50, A2=45, E2=40)
     const OPEN_STRINGS = [
-      { strIndex: 1, openMidi: 64, laneId: 71 }, // High E
-      { strIndex: 2, openMidi: 59, laneId: 70 }, // B
-      { strIndex: 3, openMidi: 55, laneId: 69 }, // G
-      { strIndex: 4, openMidi: 50, laneId: 68 }, // D
-      { strIndex: 5, openMidi: 45, laneId: 67 }, // A
-      { strIndex: 6, openMidi: 40, laneId: 65 }  // Low E
+      { strIndex: 1, openMidi: 64, laneId: 71 }, // High E (E4)
+      { strIndex: 2, openMidi: 59, laneId: 70 }, // B (B3)
+      { strIndex: 3, openMidi: 55, laneId: 69 }, // G (G3)
+      { strIndex: 4, openMidi: 50, laneId: 68 }, // D (D3)
+      { strIndex: 5, openMidi: 45, laneId: 67 }, // A (A2)
+      { strIndex: 6, openMidi: 40, laneId: 65 }  // Low E (E2)
     ];
 
     let currentMidi = null;
@@ -368,7 +365,6 @@
       statusLog.scrollTop = statusLog.scrollHeight;
     }
 
-    // Allocate optimal string and fret position
     function mapPitchToFretboard(rifflePitch) {
       if (rifflePitch <= 0) return { laneId: 65, fret: 0 };
       for (let s = 0; s < OPEN_STRINGS.length; s++) {
@@ -383,7 +379,6 @@
       return { laneId: 65, fret: Math.max(0, rifflePitch - 40) };
     }
 
-    // Native MIDI Binary Parser (Type 0 / 1)
     function parseMidiBinary(arrayBuffer) {
       const dv = new DataView(arrayBuffer);
       let offset = 0;
@@ -505,7 +500,6 @@
       return { bpm: detectedBpm, ppqn, notes: extractedNotes };
     }
 
-    // Align extracted notes into synchronized steps
     function processMidiSequence() {
       if (!currentMidi || currentMidi.notes.length === 0) return;
 
@@ -522,7 +516,7 @@
 
       const bucketMap = new Map();
       for (const n of currentMidi.notes) {
-        if (n.channel === 9) continue; // Exclude General MIDI drum channel
+        if (n.channel === 9) continue;
         const vKey = `${n.track}:${n.channel}`;
         if (allowedVoices.size > 0 && !allowedVoices.has(vKey)) continue;
 
@@ -572,7 +566,6 @@
       downloadRiffleBtn.disabled = false;
     }
 
-    // Render interactive fretboard visualizer with high-DPI scaling
     function renderCanvasTab() {
       const stepWidth = 28;
       const totalSteps = processedSteps.length;
@@ -593,7 +586,6 @@
 
       const quantizeDiv = parseInt(quantizeSelect.value, 10);
 
-      // Measure grid lines
       for (let i = 0; i <= totalSteps; i++) {
         const x = 32 + i * stepWidth;
         canvasCtx.strokeStyle = (i % quantizeDiv === 0) ? '#486581' : '#182026';
@@ -604,7 +596,6 @@
         canvasCtx.stroke();
       }
 
-      // Horizontal reference lanes (Strings 1..6)
       const laneSpacing = 18;
       const startY = 28;
       const stringLabels = ['e', 'B', 'G', 'D', 'A', 'E'];
@@ -622,7 +613,6 @@
         canvasCtx.stroke();
       }
 
-      // Render note indicators
       for (let i = 0; i < totalSteps; i++) {
         const st = processedSteps[i];
         if (st.pitch > 0) {
@@ -648,7 +638,6 @@
       canvasCtx.restore();
     }
 
-    // Build native 2,944-integer array with synchronized pitch, duration, and dynamics
     function compileRiffleArray() {
       const out = customTemplateArray ? customTemplateArray.slice() : new Array(RIFFLE_ARRAY_LEN).fill(0);
 
@@ -664,7 +653,6 @@
 
       const activeLen = processedSteps.length;
 
-      // Clear musical data tables
       for (let i = 0; i < 512; i++) {
         out[PITCH_START + i] = 0;
         out[DUR_START + i]   = 0;
@@ -694,7 +682,6 @@
       return out;
     }
 
-    // Generate compliant Little-Endian UTF-16LE binary Blob with BOM (0xFF, 0xFE)
     function buildRiffleBlob(integers) {
       const csvString = integers.join(',') + ',';
       const byteLen = 2 + csvString.length * 2;
@@ -711,7 +698,6 @@
       return new Blob([buffer], { type: 'application/octet-stream' });
     }
 
-    // iPadOS Files Export Pipeline
     async function exportRiffle() {
       try {
         const integers = compileRiffleArray();
@@ -738,7 +724,6 @@
       }
     }
 
-    // Web Audio Synthesizer Audio Preview
     function toggleAudioPlayback() {
       if (isPlayingAudio) {
         if (audioContext) audioContext.close();
