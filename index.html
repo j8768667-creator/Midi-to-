@@ -317,13 +317,13 @@
 
   <script>
     const RIFFLE_ARRAY_LEN = 2944;
+    const CHORD_START = 50;
     const PITCH_START = 1024;
     const DUR_START   = 1536;
     const GATE_START  = 2048;
     const STR_START   = 2560;
     const FRET_START  = 2816;
 
-    // Guitar open strings (Standard tuning: E4=64, B3=59, G3=55, D3=50, A2=45, E2=40)
     const OPEN_STRINGS = [
       { strIndex: 1, openMidi: 64, laneId: 71 }, // High E
       { strIndex: 2, openMidi: 59, laneId: 70 }, // B
@@ -365,7 +365,6 @@
       statusLog.scrollTop = statusLog.scrollHeight;
     }
 
-    // Built-in verified native donor template (Derived from Note change.riffle)
     function generateVerifiedTemplate() {
       const arr = new Array(RIFFLE_ARRAY_LEN).fill(0);
       arr[0] = 200;
@@ -379,13 +378,11 @@
       for (let b = 31; b <= 38; b++) arr[b] = 4000;
       arr[42] = 97; arr[43] = 100; arr[44] = 12; arr[45] = 65; arr[46] = 5; arr[47] = 8;
 
-      // Base chord scale markers in indices 50..1023
       const chordMarkers = [57, 60, 62, 65, 57, 60, 62, 65];
       for (let i = 0; i < 64; i++) {
-        arr[50 + i] = chordMarkers[i % chordMarkers.length];
+        arr[CHORD_START + i] = chordMarkers[i % chordMarkers.length];
       }
 
-      // Default string lanes
       for (let i = 0; i < 128; i++) {
         arr[STR_START + i] = 69;
         arr[FRET_START + i] = 33;
@@ -668,7 +665,6 @@
     }
 
     function compileRiffleArray() {
-      // Use verified donor template or user-provided template
       const out = customTemplateArray ? customTemplateArray.slice() : generateVerifiedTemplate();
 
       out[0] = 200;
@@ -681,9 +677,16 @@
         out[b] = 4000;
       }
 
+      // Populate Chord Ribbon (indices 50..1023) with detected melody root pitch classes
+      const chordNotes = processedSteps.filter(s => s.pitch > 0).map(s => s.pitch);
+      if (chordNotes.length > 0) {
+        for (let c = 0; c < 64; c++) {
+          out[CHORD_START + c] = chordNotes[c % chordNotes.length];
+        }
+      }
+
       const activeLen = processedSteps.length;
 
-      // Clear musical data tables
       for (let i = 0; i < 512; i++) {
         out[PITCH_START + i] = 0;
         out[DUR_START + i]   = 0;
@@ -719,7 +722,6 @@
       const buffer = new ArrayBuffer(byteLen);
       const dv = new DataView(buffer);
 
-      // Write UTF-16LE Byte Order Mark (BOM: 0xFF, 0xFE)
       dv.setUint8(0, 0xFF);
       dv.setUint8(1, 0xFE);
 
