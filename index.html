@@ -10,16 +10,15 @@
     --surface: #182026;
     --surface-elevated: #222c35;
     --border: #2d3b47;
-    --border-focus: #486581;
-    --text-main: #f0f4f8;
-    --text-muted: #829ab1;
+    --border-active: #486581;
+    --text: #f0f4f8;
+    --text-dim: #829ab1;
     --accent: #2e7d32;
     --accent-hover: #388e3c;
     --accent-active: #1b5e20;
-    --danger: #d32f2f;
     --cyan: #38bdf8;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
   * {
@@ -31,14 +30,13 @@
     margin: 0;
     padding: env(safe-area-inset-top, 16px) env(safe-area-inset-right, 16px) env(safe-area-inset-bottom, 16px) env(safe-area-inset-left, 16px);
     background-color: var(--bg);
-    color: var(--text-main);
-    font-family: var(--font-sans);
+    color: var(--text);
+    font-family: var(--sans);
     min-height: 100vh;
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    touch-action: manipulation;
   }
 
   header {
@@ -60,7 +58,7 @@
 
   .badge {
     font-size: 0.75rem;
-    font-family: var(--font-mono);
+    font-family: var(--mono);
     background: var(--surface-elevated);
     color: var(--cyan);
     padding: 4px 8px;
@@ -84,7 +82,7 @@
     gap: 12px;
   }
 
-  @media (max-width: 680px) {
+  @media (max-width: 700px) {
     .grid-2col {
       grid-template-columns: 1fr;
     }
@@ -101,46 +99,34 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--text-muted);
+    color: var(--text-dim);
   }
 
   .hint {
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: var(--text-dim);
     line-height: 1.35;
   }
 
-  /* 44px touch target compliance for iPadOS touch interaction */
-  button, select, input[type="file"], .file-select-btn {
+  /* 44px min-height constraint for iPadOS touch interaction */
+  button, select, input[type="file"] {
     min-height: 44px;
     height: 44px;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--surface-elevated);
-    color: var(--text-main);
+    color: var(--text);
     font-size: 0.95rem;
     font-weight: 600;
     padding: 0 14px;
     touch-action: manipulation;
     cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s ease, border-color 0.15s ease;
-  }
-
-  button:active, .file-select-btn:active {
-    background: var(--border);
   }
 
   button.primary {
     background: var(--accent);
     border-color: #388e3c;
     color: #ffffff;
-  }
-
-  button.primary:active {
-    background: var(--accent-active);
   }
 
   button.secondary {
@@ -163,25 +149,17 @@
     background-position: right 12px center;
   }
 
-  .file-input-wrapper {
-    position: relative;
-    width: 100%;
+  .file-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 
-  .file-input-wrapper input[type="file"] {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
-    z-index: 2;
-  }
-
-  .file-select-btn {
-    width: 100%;
-    pointer-events: none;
+  .file-box input[type="file"] {
+    padding: 8px 12px;
+    background: var(--surface-elevated);
+    font-family: var(--sans);
+    font-size: 0.85rem;
   }
 
   .voice-picker-box {
@@ -233,11 +211,11 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 12px;
-    font-family: var(--font-mono);
+    font-family: var(--mono);
     font-size: 0.8rem;
     line-height: 1.4;
-    color: var(--text-muted);
-    max-height: 120px;
+    color: var(--text-dim);
+    max-height: 140px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     white-space: pre-wrap;
@@ -251,33 +229,27 @@
 <body>
 
   <header>
-    <h1>MIDI to .riffle Exporter</h1>
-    <span class="badge">iPad Pro 11" Ready</span>
+    <h1>MIDI to .riffle Converter</h1>
+    <span class="badge">iPad Pro 11" Optimized</span>
   </header>
 
   <div class="panel">
     <div class="grid-2col">
-      <div class="control-group">
-        <label>1) Template .riffle (Optional)</label>
-        <div class="file-input-wrapper">
-          <button type="button" class="file-select-btn" id="templateBtnLabel">Using Built-in Standard Template</button>
-          <input type="file" id="templateInput" accept=".riffle,text/plain" />
-        </div>
-        <span class="hint">Upload a customized .riffle preset to copy key, scale, and sound flags.</span>
+      <div class="control-group file-box">
+        <label for="templateInput">1) Structural Template .riffle (Optional)</label>
+        <input type="file" id="templateInput" accept=".riffle,text/plain" />
+        <span class="hint">Upload a native .riffle preset to inherit specific scale, key, and preset engine settings.</span>
       </div>
 
-      <div class="control-group">
-        <label>2) Source MIDI File</label>
-        <div class="file-input-wrapper">
-          <button type="button" class="file-select-btn primary" id="midiBtnLabel">Select MIDI (.mid, .midi)</button>
-          <input type="file" id="midiInput" accept=".mid,.midi,audio/midi,audio/x-midi" />
-        </div>
-        <span class="hint">Compatible with Type 0 and Type 1 Standard MIDI Files.</span>
+      <div class="control-group file-box">
+        <label for="midiInput">2) Source MIDI File</label>
+        <input type="file" id="midiInput" accept=".mid,.midi,audio/midi,audio/x-midi" />
+        <span class="hint">Supports Standard MIDI Files (Type 0 and Type 1).</span>
       </div>
     </div>
 
     <div id="voicePickerContainer" style="display:none;" class="control-group">
-      <label>Select Tracks / Channels to Convert</label>
+      <label>Select Tracks / Channels to Include</label>
       <div class="voice-picker-box" id="voiceList"></div>
     </div>
   </div>
@@ -285,9 +257,9 @@
   <div class="panel">
     <div class="grid-2col">
       <div class="control-group">
-        <label>Pitch Transposition</label>
+        <label for="pitchOffsetSelect">Pitch Transposition</label>
         <select id="pitchOffsetSelect">
-          <option value="-12" selected>MIDI Note - 12 (Native Riffler Offset)</option>
+          <option value="-12" selected>MIDI Note - 12 (Standard Riffler Offset)</option>
           <option value="0">MIDI Note Unchanged (0 semitones)</option>
           <option value="12">MIDI Note + 12</option>
           <option value="-24">MIDI Note - 24</option>
@@ -295,7 +267,7 @@
       </div>
 
       <div class="control-group">
-        <label>Grid Quantization</label>
+        <label for="quantizeSelect">Grid Quantization</label>
         <select id="quantizeSelect">
           <option value="16" selected>1/16 Note Grid (250 ticks)</option>
           <option value="8">1/8 Note Grid (500 ticks)</option>
@@ -306,7 +278,7 @@
 
     <div class="grid-2col">
       <div class="control-group">
-        <label>Maximum Steps</label>
+        <label for="maxSlotsSelect">Maximum Steps</label>
         <select id="maxSlotsSelect">
           <option value="64">64 Steps (4 Bars)</option>
           <option value="128" selected>128 Steps (8 Bars)</option>
@@ -316,7 +288,7 @@
       </div>
 
       <div class="control-group">
-        <label>Simultaneous Chord Handling</label>
+        <label for="chordModeSelect">Simultaneous Chord Handling</label>
         <select id="chordModeSelect">
           <option value="top" selected>Melody (Top Note Only)</option>
           <option value="bottom">Bass Line (Lowest Note Only)</option>
@@ -346,7 +318,7 @@
   </div>
 
   <script>
-    // Strict constants derived from native .riffle reverse engineering
+    // Rigorous constant boundaries verified from native .riffle structure
     const RIFFLE_ARRAY_LEN = 2944;
     const PITCH_START = 1024;
     const DUR_START   = 1536;
@@ -354,27 +326,24 @@
     const STR_START   = 2560;
     const FRET_START  = 2816;
 
-    // Standard Guitar Open String MIDI Note Numbers
+    // Guitar open strings (Standard tuning: E4=64, B3=59, G3=55, D3=50, A2=45, E2=40)
     const OPEN_STRINGS = [
-      { strIndex: 1, openMidi: 64, laneId: 71 }, // High E (E4)
-      { strIndex: 2, openMidi: 59, laneId: 70 }, // B (B3)
-      { strIndex: 3, openMidi: 55, laneId: 69 }, // G (G3)
-      { strIndex: 4, openMidi: 50, laneId: 68 }, // D (D3)
-      { strIndex: 5, openMidi: 45, laneId: 67 }, // A (A2)
-      { strIndex: 6, openMidi: 40, laneId: 65 }  // Low E (E2)
+      { strIndex: 1, openMidi: 64, laneId: 71 }, // High E
+      { strIndex: 2, openMidi: 59, laneId: 70 }, // B
+      { strIndex: 3, openMidi: 55, laneId: 69 }, // G
+      { strIndex: 4, openMidi: 50, laneId: 68 }, // D
+      { strIndex: 5, openMidi: 45, laneId: 67 }, // A
+      { strIndex: 6, openMidi: 40, laneId: 65 }  // Low E
     ];
 
     let currentMidi = null;
-    let parsedNotes = [];
     let processedSteps = [];
     let customTemplateArray = null;
     let audioContext = null;
     let isPlayingAudio = false;
 
     const templateInput = document.getElementById('templateInput');
-    const templateBtnLabel = document.getElementById('templateBtnLabel');
     const midiInput = document.getElementById('midiInput');
-    const midiBtnLabel = document.getElementById('midiBtnLabel');
     const voicePickerContainer = document.getElementById('voicePickerContainer');
     const voiceList = document.getElementById('voiceList');
     const pitchOffsetSelect = document.getElementById('pitchOffsetSelect');
@@ -399,10 +368,9 @@
       statusLog.scrollTop = statusLog.scrollHeight;
     }
 
-    // Allocate optimal guitar string and fret calculation
+    // Allocate optimal string and fret position
     function mapPitchToFretboard(rifflePitch) {
       if (rifflePitch <= 0) return { laneId: 65, fret: 0 };
-      // Standard guitar playable range heuristics
       for (let s = 0; s < OPEN_STRINGS.length; s++) {
         const str = OPEN_STRINGS[s];
         if (rifflePitch >= str.openMidi) {
@@ -493,7 +461,6 @@
           } else if (msgType === 0x9 || msgType === 0x8) {
             const note = dv.getUint8(offset++);
             const vel = dv.getUint8(offset++);
-            // Exclude non-musical velocity 0 boundary artifacts
             if (note > 12) {
               rawEvents.push({
                 ticks: currentTicks,
@@ -538,7 +505,7 @@
       return { bpm: detectedBpm, ppqn, notes: extractedNotes };
     }
 
-    // Align extracted notes with the 1000-ticks-per-quarter Riffler timing engine
+    // Align extracted notes into synchronized steps
     function processMidiSequence() {
       if (!currentMidi || currentMidi.notes.length === 0) return;
 
@@ -547,17 +514,15 @@
       const maxSlots = parseInt(maxSlotsSelect.value, 10);
       const chordMode = chordModeSelect.value;
 
-      // Filter active user tracks/channels
       const checkedBoxes = document.querySelectorAll('.voice-chk:checked');
       const allowedVoices = new Set(Array.from(checkedBoxes).map(cb => cb.value));
 
       const ticksPerStep = (currentMidi.ppqn * 4) / quantizeDiv;
       const stepUnitDuration = Math.round(1000 / (quantizeDiv / 4));
 
-      // Group by step bucket
       const bucketMap = new Map();
       for (const n of currentMidi.notes) {
-        if (n.channel === 9) continue; // Exclude General MIDI Percussion Channel 10
+        if (n.channel === 9) continue; // Exclude General MIDI drum channel
         const vKey = `${n.track}:${n.channel}`;
         if (allowedVoices.size > 0 && !allowedVoices.has(vKey)) continue;
 
@@ -584,10 +549,9 @@
         let chosenNote = null;
         if (chordMode === 'top') chosenNote = notesInStep[notesInStep.length - 1];
         else if (chordMode === 'bottom') chosenNote = notesInStep[0];
-        else chosenNote = notesInStep[0]; // Primary representative note
+        else chosenNote = notesInStep[0];
 
         if (chosenNote) {
-          // Native octave clamp[span_36](start_span)[span_36](end_span): playable ceiling <= 64
           let rPitch = chosenNote.pitch + offset;
           while (rPitch > 64) rPitch -= 12;
           while (rPitch < 28) rPitch += 12;
@@ -608,20 +572,28 @@
       downloadRiffleBtn.disabled = false;
     }
 
-    // Render interactive fretboard visualizer
+    // Render interactive fretboard visualizer with high-DPI scaling
     function renderCanvasTab() {
       const stepWidth = 28;
       const totalSteps = processedSteps.length;
-      const canvasWidth = Math.max(tabScrollContainer.clientWidth - 16, totalSteps * stepWidth + 40);
-      tabCanvas.width = canvasWidth;
-      tabCanvas.height = 150;
+      const cssWidth = Math.max(tabScrollContainer.clientWidth - 16, totalSteps * stepWidth + 40);
+      const cssHeight = 150;
+      const dpr = window.devicePixelRatio || 1;
+
+      tabCanvas.width = cssWidth * dpr;
+      tabCanvas.height = cssHeight * dpr;
+      tabCanvas.style.width = cssWidth + 'px';
+      tabCanvas.style.height = cssHeight + 'px';
+
+      canvasCtx.save();
+      canvasCtx.scale(dpr, dpr);
 
       canvasCtx.fillStyle = '#090c0f';
-      canvasCtx.fillRect(0, 0, canvasWidth, 150);
+      canvasCtx.fillRect(0, 0, cssWidth, cssHeight);
 
       const quantizeDiv = parseInt(quantizeSelect.value, 10);
 
-      // Measure lines
+      // Measure grid lines
       for (let i = 0; i <= totalSteps; i++) {
         const x = 32 + i * stepWidth;
         canvasCtx.strokeStyle = (i % quantizeDiv === 0) ? '#486581' : '#182026';
@@ -646,11 +618,11 @@
         canvasCtx.lineWidth = 1;
         canvasCtx.beginPath();
         canvasCtx.moveTo(30, y);
-        canvasCtx.lineTo(canvasWidth - 10, y);
+        canvasCtx.lineTo(cssWidth - 10, y);
         canvasCtx.stroke();
       }
 
-      // Step note icons
+      // Render note indicators
       for (let i = 0; i < totalSteps; i++) {
         const st = processedSteps[i];
         if (st.pitch > 0) {
@@ -673,20 +645,18 @@
           canvasCtx.fillText(st.fret.toString(), x, y);
         }
       }
+      canvasCtx.restore();
     }
 
     // Build native 2,944-integer array with synchronized pitch, duration, and dynamics
     function compileRiffleArray() {
-      // Base template array initialization
       const out = customTemplateArray ? customTemplateArray.slice() : new Array(RIFFLE_ARRAY_LEN).fill(0);
 
-      // Header parameters
-      out[0] = 200; // Protocol version
-      out[1] = (currentMidi?.bpm || 100) * 100; // field[1] = Centi-BPM
-      out[2] = processedSteps.length >= 128 ? 8 : 4; // Bar count
-      out[4] = 69; // Transposition anchor (A4)
+      out[0] = 200;
+      out[1] = (currentMidi?.bpm || 100) * 100;
+      out[2] = processedSteps.length >= 128 ? 8 : 4;
+      out[4] = 69;
 
-      // Whole note placeholders for measures
       const numBars = out[2];
       for (let b = 31; b < 31 + numBars; b++) {
         out[b] = 4000;
@@ -708,7 +678,6 @@
         out[DUR_START + i]   = st.durUnits;
         out[GATE_START + i]  = st.gate;
 
-        // Populate guitar fretboard lane and fret tables
         if (STR_START + i < 2816) {
           out[STR_START + i] = st.laneId;
         }
@@ -732,7 +701,6 @@
       const buffer = new ArrayBuffer(byteLen);
       const dv = new DataView(buffer);
 
-      // Write Little-Endian Byte Order Mark
       dv.setUint8(0, 0xFF);
       dv.setUint8(1, 0xFE);
 
@@ -770,7 +738,7 @@
       }
     }
 
-    // Synthesizer Audio Preview
+    // Web Audio Synthesizer Audio Preview
     function toggleAudioPlayback() {
       if (isPlayingAudio) {
         if (audioContext) audioContext.close();
@@ -796,7 +764,6 @@
           const osc = audioContext.createOscillator();
           const gain = audioContext.createGain();
 
-          // Native playback pitch restoration
           const midiPitch = st.pitch + 12;
           const freq = 440 * Math.pow(2, (midiPitch - 69) / 12);
 
@@ -822,12 +789,11 @@
       }, totalTime * 1000);
     }
 
-    // Build voice selection checkboxes for multi-track MIDI
     function populateVoicePicker(notes) {
       voiceList.innerHTML = '';
       const voiceMap = new Map();
       for (const n of notes) {
-        if (n.channel === 9) continue; // Exclude drums
+        if (n.channel === 9) continue;
         const key = `${n.track}:${n.channel}`;
         if (!voiceMap.has(key)) voiceMap.set(key, { count: 0, track: n.track, channel: n.channel });
         voiceMap.get(key).count++;
@@ -847,7 +813,6 @@
       }
     }
 
-    // Event Listeners
     templateInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -863,7 +828,6 @@
         const nums = text.split(',').map(x => x.trim()).filter(x => x.length).map(x => parseInt(x, 10));
         if (nums.length < 2560) throw new Error('Template file smaller than expected .riffle structure');
         customTemplateArray = nums;
-        templateBtnLabel.textContent = file.name;
         log(`Loaded custom template: ${file.name} (${nums.length} values)`, 'ok');
       } catch (err) {
         log(`Template error: ${err.message}`, 'err');
@@ -873,7 +837,6 @@
     midiInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      midiBtnLabel.textContent = file.name;
       try {
         const buffer = await file.arrayBuffer();
         currentMidi = parseMidiBinary(buffer);
@@ -893,7 +856,6 @@
     downloadRiffleBtn.addEventListener('click', exportRiffle);
     window.addEventListener('resize', renderCanvasTab);
 
-    // Initial canvas render
     renderCanvasTab();
   </script>
 </body>
