@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>MIDI to .riffle Converter</title>
+<title>MIDI to Riffle Flow Converter</title>
 <style>
   :root {
     --bg: #0e1317;
@@ -237,7 +237,7 @@
       <div class="control-group file-box">
         <label for="templateInput">1) Structural Template .riffle (Optional)</label>
         <input type="file" id="templateInput" accept=".riffle,text/plain" />
-        <span class="hint">Upload a native .riffle preset to inherit specific scale, key, and sound flags.</span>
+        <span class="hint">Upload a native .riffle preset to inherit specific scale, key, and chord progressions.</span>
       </div>
 
       <div class="control-group file-box">
@@ -277,17 +277,16 @@
 
     <div class="grid-2col">
       <div class="control-group">
-        <label for="maxSlotsSelect">Maximum Steps</label>
+        <label for="maxSlotsSelect">Pattern Length / Step Capacity</label>
         <select id="maxSlotsSelect">
-          <option value="64">64 Steps (4 Bars)</option>
-          <option value="128" selected>128 Steps (8 Bars)</option>
-          <option value="256">256 Steps</option>
-          <option value="500">500 Steps (Full Buffer Ceiling)</option>
+          <option value="64">4 Bars (64 Steps)</option>
+          <option value="128" selected>8 Bars (128 Steps)</option>
+          <option value="256">16 Bars (256 Steps)</option>
         </select>
       </div>
 
       <div class="control-group">
-        <label for="chordModeSelect">Simultaneous Chord Handling</label>
+        <label for="chordModeSelect">Polyphony / Chord Extraction</label>
         <select id="chordModeSelect">
           <option value="top" selected>Melody (Top Note Only)</option>
           <option value="bottom">Bass Line (Lowest Note Only)</option>
@@ -324,13 +323,14 @@
     const STR_START   = 2560;
     const FRET_START  = 2816;
 
+    // Guitar open strings (Standard tuning: E4=64, B3=59, G3=55, D3=50, A2=45, E2=40)
     const OPEN_STRINGS = [
-      { strIndex: 1, openMidi: 64, laneId: 71 }, // High E (E4)
-      { strIndex: 2, openMidi: 59, laneId: 70 }, // B (B3)
-      { strIndex: 3, openMidi: 55, laneId: 69 }, // G (G3)
-      { strIndex: 4, openMidi: 50, laneId: 68 }, // D (D3)
-      { strIndex: 5, openMidi: 45, laneId: 67 }, // A (A2)
-      { strIndex: 6, openMidi: 40, laneId: 65 }  // Low E (E2)
+      { strIndex: 1, openMidi: 64, laneId: 71 }, // High E
+      { strIndex: 2, openMidi: 59, laneId: 70 }, // B
+      { strIndex: 3, openMidi: 55, laneId: 69 }, // G
+      { strIndex: 4, openMidi: 50, laneId: 68 }, // D
+      { strIndex: 5, openMidi: 45, laneId: 67 }, // A
+      { strIndex: 6, openMidi: 40, laneId: 65 }  // Low E
     ];
 
     let currentMidi = null;
@@ -363,6 +363,35 @@
       else el.textContent = `[${time}] ${msg}`;
       statusLog.appendChild(el);
       statusLog.scrollTop = statusLog.scrollHeight;
+    }
+
+    // Built-in verified native donor template (Derived from Note change.riffle)
+    function generateVerifiedTemplate() {
+      const arr = new Array(RIFFLE_ARRAY_LEN).fill(0);
+      arr[0] = 200;
+      arr[1] = 12000;
+      arr[2] = 8;
+      arr[3] = 0;
+      arr[4] = 69;
+      arr[7] = 1;
+      arr[11] = 3; arr[13] = 1; arr[16] = 2; arr[18] = 10; arr[19] = 9;
+      arr[29] = 1;
+      for (let b = 31; b <= 38; b++) arr[b] = 4000;
+      arr[42] = 97; arr[43] = 100; arr[44] = 12; arr[45] = 65; arr[46] = 5; arr[47] = 8;
+
+      // Base chord scale markers in indices 50..1023
+      const chordMarkers = [57, 60, 62, 65, 57, 60, 62, 65];
+      for (let i = 0; i < 64; i++) {
+        arr[50 + i] = chordMarkers[i % chordMarkers.length];
+      }
+
+      // Default string lanes
+      for (let i = 0; i < 128; i++) {
+        arr[STR_START + i] = 69;
+        arr[FRET_START + i] = 33;
+      }
+      arr[STR_START + 63] = 88;
+      return arr;
     }
 
     function mapPitchToFretboard(rifflePitch) {
@@ -639,10 +668,11 @@
     }
 
     function compileRiffleArray() {
-      const out = customTemplateArray ? customTemplateArray.slice() : new Array(RIFFLE_ARRAY_LEN).fill(0);
+      // Use verified donor template or user-provided template
+      const out = customTemplateArray ? customTemplateArray.slice() : generateVerifiedTemplate();
 
       out[0] = 200;
-      out[1] = (currentMidi?.bpm || 100) * 100;
+      out[1] = (currentMidi?.bpm || 120) * 100;
       out[2] = processedSteps.length >= 128 ? 8 : 4;
       out[4] = 69;
 
@@ -653,6 +683,7 @@
 
       const activeLen = processedSteps.length;
 
+      // Clear musical data tables
       for (let i = 0; i < 512; i++) {
         out[PITCH_START + i] = 0;
         out[DUR_START + i]   = 0;
@@ -674,7 +705,7 @@
         }
       }
 
-      // Clean end-of-sequence terminator
+      // End-of-sequence terminator
       out[PITCH_START + activeLen] = -1;
       out[DUR_START + activeLen]   = -1;
       out[GATE_START + activeLen]  = -1;
@@ -688,6 +719,7 @@
       const buffer = new ArrayBuffer(byteLen);
       const dv = new DataView(buffer);
 
+      // Write UTF-16LE Byte Order Mark (BOM: 0xFF, 0xFE)
       dv.setUint8(0, 0xFF);
       dv.setUint8(1, 0xFE);
 
@@ -702,12 +734,12 @@
       try {
         const integers = compileRiffleArray();
         const blob = buildRiffleBlob(integers);
-        const fileName = `converted_${currentMidi?.bpm || 100}bpm.riffle`;
+        const fileName = `converted_${currentMidi?.bpm || 120}bpm.riffle`;
         const fileObj = new File([blob], fileName, { type: 'application/octet-stream' });
 
         if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
           await navigator.share({ files: [fileObj], title: fileName });
-          log(`Shared ${fileName} via iOS Share Sheet. Tap "Save to Files".`, 'ok');
+          log(`Exported ${fileName}. Tap "Save to Files" in the iOS Share Sheet.`, 'ok');
         } else {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -717,7 +749,7 @@
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-          log(`Exported ${fileName} directly. Check Downloads in Files app.`, 'ok');
+          log(`Exported ${fileName} directly. Check Downloads in the Files app.`, 'ok');
         }
       } catch (err) {
         log(`Export failed: ${err.message}`, 'err');
@@ -739,7 +771,7 @@
       isPlayingAudio = true;
       previewAudioBtn.textContent = 'Stop Audio';
 
-      const bpm = currentMidi?.bpm || 100;
+      const bpm = currentMidi?.bpm || 120;
       const quantizeDiv = parseInt(quantizeSelect.value, 10);
       const stepDurationSec = (60 / bpm) / (quantizeDiv / 4);
       let scheduleTime = audioContext.currentTime + 0.05;
