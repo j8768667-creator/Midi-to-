@@ -677,7 +677,6 @@
         out[b] = 4000;
       }
 
-      // Populate Chord Ribbon (indices 50..1023) with detected melody root pitch classes
       const chordNotes = processedSteps.filter(s => s.pitch > 0).map(s => s.pitch);
       if (chordNotes.length > 0) {
         for (let c = 0; c < 64; c++) {
@@ -693,7 +692,6 @@
         out[GATE_START + i]  = 0;
       }
 
-      // Synchronize active steps into respective tables
       for (let i = 0; i < activeLen; i++) {
         const st = processedSteps[i];
         out[PITCH_START + i] = st.pitch;
@@ -708,7 +706,6 @@
         }
       }
 
-      // End-of-sequence terminator
       out[PITCH_START + activeLen] = -1;
       out[DUR_START + activeLen]   = -1;
       out[GATE_START + activeLen]  = -1;
