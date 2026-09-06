@@ -191,9 +191,9 @@
     <input type="number" id="bpmOverride" placeholder="auto-detect from MIDI" min="1" step="0.01">
     <div class="hint">Use this if your MIDI came from a live-recorded MIDI-out stream rather than a true export — those often carry a placeholder tempo instead of the real one.</div>
 
-    <label for="barLength">Grid slots per bar <span class="opt">— optional</span></label>
-    <input type="number" id="barLength" placeholder="16" min="1" step="1">
-    <div class="hint">Default 16 = sixteenth-note grid in 4/4. Change this if your MIDI's note grid doesn't divide evenly into 16.</div>
+    <label for="timeSigOverride">Time signature <span class="opt">— optional</span></label>
+    <input type="text" id="timeSigOverride" placeholder="auto-detect, e.g. 4/4">
+    <div class="hint">Bar breaks are placed by elapsed time (a 4/4 bar = 4 beats), read from the MIDI's time signature. Override it here if your MIDI doesn't specify one, or specifies the wrong one.</div>
   </fieldset>
 
   <button id="convertBtn">Convert</button>
@@ -206,9 +206,10 @@
       <li class="ok-dot">Pitch (riffle note = MIDI note − 12) — confirmed exactly against a 64-note reference file</li>
       <li class="ok-dot">Duration (fixed grid, quarter note = 1000 ticks, independent of tempo) — confirmed</li>
       <li class="ok-dot">Tempo (header field = BPM × 100) — confirmed</li>
-      <li class="ok-dot">Bar count and its header placeholders — confirmed</li>
+      <li class="ok-dot">Bar breaks placed by elapsed time against the real time signature, with explicit rests for silence — confirmed on a monophonic example; fixes an earlier bug where bars were split by a fixed note count, which badly misaligned anything with mixed note lengths</li>
+      <li class="warn-dot">Chords (simultaneous notes) are unrolled into a fast sequential arpeggio, each keeping its own sustain length — a reasonable but <em>unverified</em> choice; our only confirmed example never had two notes at once</li>
       <li class="warn-dot">Chord-name labels shown in the app — copied from the template, so they may not match your converted notes</li>
-      <li class="warn-dot">A possible second "layer" some .riffle files carry (e.g. a chord-strum accompaniment alongside the melodic line) — not reproduced, since a single MIDI take doesn't contain it</li>
+      <li class="warn-dot">A possible second "layer" some .riffle files carry (e.g. a chord-strum accompaniment alongside the melodic line) — not reproduced</li>
     </ul>
   </details>
 </div>
@@ -241,6 +242,7 @@ function parseMidi(buffer) {
 
   let pos = 8 + headerLen;
   let tempoUspq = 500000; // default 120 bpm
+  let timeSig = [4, 4];   // default 4/4
   const noteEvents = []; // {start, pitch, dur}
 
   for (let t = 0; t < ntrks; t++) {
@@ -271,6 +273,8 @@ function parseMidi(buffer) {
         [mlen, i] = readVarLen(view, i);
         if (metaType === 0x51 && mlen === 3) {
           tempoUspq = (view.getUint8(i) << 16) | (view.getUint8(i+1) << 8) | view.getUint8(i+2);
+        } else if (metaType === 0x58 && mlen >= 2) {
+          timeSig = [view.getUint8(i), 2 ** view.getUint8(i+1)];
         }
         i += mlen;
       } else if (status === 0xF0 || status === 0xF7) {
@@ -309,7 +313,7 @@ function parseMidi(buffer) {
 
   noteEvents.sort((a, b) => a.start - b.start);
   const bpm = 60000000 / tempoUspq;
-  return { noteEvents, division, bpm };
+  return { noteEvents, division, bpm, timeSig };
 }
 
 function decodeRiffleFields(buffer) {
@@ -334,7 +338,43 @@ function encodeRiffleFile(fields) {
   return bytes;
 }
 
-function buildRiffle(noteEvents, division, bpm, templateFields, barLen) {
+function flattenToSequence(noteEvents, division) {
+  // Group simultaneous notes (same start tick -- real chords) into
+  // chronological steps, insert explicit rests for silence gaps, and
+  // arpeggiate chords low-to-high (see midi_to_riffle.py for the full
+  // reasoning and caveats -- this mirrors that logic exactly).
+  if (noteEvents.length === 0) return [];
+
+  const steps = [];
+  let i = 0;
+  while (i < noteEvents.length) {
+    const start = noteEvents[i].start;
+    const group = [];
+    while (i < noteEvents.length && noteEvents[i].start === start) {
+      group.push(noteEvents[i]);
+      i++;
+    }
+    group.sort((a, b) => a.pitch - b.pitch);
+    steps.push({ start, group });
+  }
+
+  const seq = [];
+  let playhead = 0;
+  for (const { start, group } of steps) {
+    if (start > playhead) {
+      const gap = start - playhead;
+      seq.push({ pitch: 0, dur: Math.round(gap * 1000 / division) });
+      playhead = start;
+    }
+    for (const e of group) {
+      seq.push({ pitch: e.pitch - 12, dur: Math.round(e.dur * 1000 / division) });
+      playhead += e.dur;
+    }
+  }
+  return seq;
+}
+
+function buildRiffle(noteEvents, division, bpm, timeSig, templateFields) {
   const fields = templateFields.slice();
   if (fields.length !== TOTAL_FIELDS) {
     throw new Error(`Template has ${fields.length} fields, expected ${TOTAL_FIELDS} — is this a valid .riffle file?`);
@@ -342,20 +382,49 @@ function buildRiffle(noteEvents, division, bpm, templateFields, barLen) {
 
   fields[1] = Math.round(bpm * 100);
 
+  // bar length in riffle-ticks, derived from the real time signature
+  // (quarter note = 1000 riffle-ticks; a 4/4 bar = 4000, matching the
+  // "4000" placeholders seen at header offset 31 in every sample file)
+  const [numerator, denominator] = timeSig;
+  const barLenRiffleTicks = Math.round(numerator * (4 / denominator) * 1000);
+
+  const sequence = flattenToSequence(noteEvents, division);
+
   const pitches = [], durations = [];
-  let countInBar = 0;
-  noteEvents.forEach((e, idx) => {
-    pitches.push(e.pitch - 12);
-    durations.push(Math.round(e.dur * 1000 / division));
-    countInBar++;
-    if (countInBar === barLen && idx !== noteEvents.length - 1) {
+  let barAccum = 0;
+  sequence.forEach((e, idx) => {
+    pitches.push(e.pitch);
+    durations.push(e.dur);
+    barAccum += e.dur;
+    if (barAccum >= barLenRiffleTicks && idx !== sequence.length - 1) {
       pitches.push(0);
       durations.push(0);
-      countInBar = 0;
+      barAccum = 0;
     }
   });
 
-  const nBars = Math.max(1, Math.ceil(noteEvents.length / barLen));
+  const totalTicks = sequence.reduce((sum, e) => sum + e.dur, 0);
+  let nBars = Math.max(1, Math.ceil(totalTicks / barLenRiffleTicks));
+
+  // SAFETY CAP: every sample file this format was reverse-engineered from
+  // tops out at 8 bars. A larger bar count crashed RifflerFLOW in testing
+  // (likely by overwriting header fields just past this region, or the
+  // app simply not supporting longer riffs). Truncate rather than emit
+  // an untested value.
+  let cappedPitches = pitches, cappedDurations = durations;
+  let capWarning = null;
+  if (nBars > 8) {
+    capWarning = `This MIDI produces a ${nBars}-bar riff — beyond anything confirmed safe for this format (max seen: 8 bars), and a larger value previously crashed RifflerFLOW. Truncated to the first 8 bars; the rest of the MIDI was cut off.`;
+    const capTicks = 8 * barLenRiffleTicks;
+    let cum = 0, cutoff = pitches.length;
+    for (let k = 0; k < durations.length; k++) {
+      cum += durations[k];
+      if (cum > capTicks) { cutoff = k; break; }
+    }
+    cappedPitches = pitches.slice(0, cutoff);
+    cappedDurations = durations.slice(0, cutoff);
+    nBars = 8;
+  }
 
   function place(offset, length, values) {
     const padded = values.slice();
@@ -366,14 +435,14 @@ function buildRiffle(noteEvents, division, bpm, templateFields, barLen) {
     for (let k = offset + truncated.length; k < offset + length; k++) fields[k] = 0;
   }
 
-  place(PITCH_OFFSET, PITCH_LEN, pitches);
-  place(DUR_OFFSET, DUR_LEN, durations);
+  place(PITCH_OFFSET, PITCH_LEN, cappedPitches);
+  place(DUR_OFFSET, DUR_LEN, cappedDurations);
 
   fields[2] = nBars;
   for (let k = 31; k < 31 + 8; k++) fields[k] = 0;
   for (let k = 31; k < 31 + nBars; k++) fields[k] = 4000;
 
-  return fields;
+  return { fields, capWarning };
 }
 
 function log(msg, cls) {
@@ -385,7 +454,7 @@ document.getElementById('convertBtn').addEventListener('click', async () => {
   const midiInput = document.getElementById('midiFile');
   const templateInput = document.getElementById('templateFile');
   const bpmOverride = document.getElementById('bpmOverride').value;
-  const barLenInput = document.getElementById('barLength').value;
+  const timeSigOverride = document.getElementById('timeSigOverride').value;
   const downloadLink = document.getElementById('download');
   downloadLink.style.display = 'none';
 
@@ -397,14 +466,17 @@ document.getElementById('convertBtn').addEventListener('click', async () => {
     const midiBuffer = await midiInput.files[0].arrayBuffer();
     const templateBuffer = await templateInput.files[0].arrayBuffer();
 
-    const { noteEvents, division, bpm: detectedBpm } = parseMidi(midiBuffer);
+    const { noteEvents, division, bpm: detectedBpm, timeSig: detectedTimeSig } = parseMidi(midiBuffer);
     if (noteEvents.length === 0) throw new Error('No notes found in that MIDI file.');
 
     const bpm = bpmOverride ? parseFloat(bpmOverride) : detectedBpm;
-    const barLen = barLenInput ? parseInt(barLenInput, 10) : 16;
+    let timeSig = detectedTimeSig;
+    if (timeSigOverride && /^\d+\/\d+$/.test(timeSigOverride.trim())) {
+      timeSig = timeSigOverride.trim().split('/').map(Number);
+    }
 
     const templateFields = decodeRiffleFields(templateBuffer);
-    const fields = buildRiffle(noteEvents, division, bpm, templateFields, barLen);
+    const { fields, capWarning } = buildRiffle(noteEvents, division, bpm, timeSig, templateFields);
     const bytes = encodeRiffleFile(fields);
 
     const blob = new Blob([bytes], { type: 'application/octet-stream' });
@@ -415,8 +487,11 @@ document.getElementById('convertBtn').addEventListener('click', async () => {
     downloadLink.style.display = 'block';
     downloadLink.textContent = `Download ${outName}`;
 
+    const nChords = noteEvents.length - new Set(noteEvents.map(e => e.start)).size;
     const bars = fields[2];
-    log(`Done — ${noteEvents.length} notes, ${bpm.toFixed(2)} BPM, ${bars} bar${bars === 1 ? '' : 's'}.`, 'ok');
+    let msg = `Done — ${noteEvents.length} notes (${nChords} in chords), ${bpm.toFixed(2)} BPM, ${timeSig[0]}/${timeSig[1]}, ${bars} bar${bars === 1 ? '' : 's'}.`;
+    if (capWarning) msg += `\n\n⚠ ${capWarning}`;
+    log(msg, capWarning ? 'err' : 'ok');
   } catch (err) {
     console.error(err);
     log('Error: ' + err.message, 'err');
