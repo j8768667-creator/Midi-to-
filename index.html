@@ -1,169 +1,427 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MIDI to .riffle Converter</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/@tonejs/midi"></script>
-  <style>
-    /* Prevent double-tap zoom on iPadOS */
-    body {
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-    }
-    
-    /* Ensure minimum 44x44px touch targets */
-    .touch-target {
-      min-height: 44px;
-      min-width: 44px;
-    }
-    
-    /* Absolute overlay for file input to ensure it is fully interactive */
-    .file-input-wrapper input[type="file"] {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      opacity: 0;
-      cursor: pointer;
-      z-index: 10;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIDI → .riffle Converter</title>
+<style>
+  :root {
+    --ink: #0f1c2e;
+    --paper: #eef3f7;
+    --line: #3a5a78;
+    --line-soft: #b9c9d6;
+    --accent: #c9622b;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+    --serif: "IBM Plex Serif", Georgia, serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    line-height: 1.5;
+  }
+
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+
+  .tab-lines {
+    height: 44px;
+    margin-bottom: 1.75rem;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--line-soft) 0px, var(--line-soft) 1px,
+      transparent 1px, transparent 8px
+    );
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 1.5rem;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.35rem;
+  }
+  h1 span { color: var(--accent); }
+
+  .sub {
+    font-size: 0.95rem;
+    color: #4a5b6c;
+    margin: 0 0 2.25rem;
+    max-width: 46ch;
+  }
+
+  fieldset {
+    border: 1px solid var(--line-soft);
+    border-radius: 2px;
+    padding: 1.1rem 1.2rem 1.3rem;
+    margin: 0 0 1.25rem;
+  }
+  legend {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--line);
+    padding: 0 0.4rem;
+  }
+
+  label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--ink);
+    margin: 0.9rem 0 0.3rem;
+  }
+  label:first-of-type { margin-top: 0; }
+  label .req { color: var(--accent); }
+  label .opt { color: #7c8b98; font-weight: normal; }
+
+  input[type="file"] {
+    display: block;
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    padding: 0.5rem 0;
+  }
+
+  input[type="number"] {
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--line-soft);
+    border-radius: 2px;
+    background: #fff;
+    color: var(--ink);
+  }
+  input[type="number"]:focus { outline: 2px solid var(--line); outline-offset: 1px; }
+
+  .hint {
+    font-size: 0.78rem;
+    color: #6b7c8c;
+    margin-top: 0.25rem;
+  }
+
+  button {
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 0.85rem;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button:hover:not(:disabled) { background: var(--line); }
+  button:disabled { background: var(--line-soft); cursor: not-allowed; }
+
+  #log {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+    background: #fff;
+    border: 1px solid var(--line-soft);
+    border-radius: 2px;
+    padding: 1rem 1.1rem;
+    margin-top: 1.25rem;
+    min-height: 2.5rem;
+    color: #2c3e50;
+  }
+  #log .err { color: #a12f2f; }
+  #log .ok { color: #21715a; }
+
+  #download {
+    display: none;
+    text-align: center;
+    text-decoration: none;
+    margin-top: 0.9rem;
+    padding: 0.85rem;
+    border: 1px solid var(--accent);
+    border-radius: 2px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  #download:hover { background: var(--accent); color: #fff; }
+
+  details {
+    margin-top: 2rem;
+    font-size: 0.83rem;
+    color: #4a5b6c;
+  }
+  summary {
+    cursor: pointer;
+    font-family: var(--mono);
+    color: var(--line);
+    font-size: 0.8rem;
+  }
+  details ul { padding-left: 1.2rem; }
+  details li { margin-bottom: 0.4rem; }
+  .ok-dot::before { content: "✓ "; color: #21715a; }
+  .warn-dot::before { content: "△ "; color: var(--accent); }
+</style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 font-sans h-screen w-screen flex flex-col items-center justify-center p-6 antialiased overflow-hidden">
+<body>
+<div class="wrap">
+  <div class="tab-lines"></div>
 
-  <main class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-8 flex flex-col gap-8 relative z-0">
-    <header class="text-center">
-      <h1 class="text-2xl font-semibold tracking-tight text-white">MIDI to Riffle</h1>
-      <p class="text-sm text-zinc-400 mt-2">64-Step Array Quantization</p>
-    </header>
+  <h1>MIDI <span>→</span> .riffle</h1>
+  <p class="sub">Converts a standard MIDI file into a RifflerFLOW-compatible <code>.riffle</code> file. Runs entirely in your browser — nothing is uploaded anywhere.</p>
 
-    <!-- File Selection -->
-    <div class="relative file-input-wrapper bg-zinc-800 hover:bg-zinc-700 border-2 border-dashed border-zinc-600 rounded-lg flex items-center justify-center touch-target transition-colors">
-      <input type="file" id="midiInput" accept=".mid,.midi,audio/midi,audio/x-midi" aria-label="Upload MIDI File">
-      <span id="fileLabel" class="text-zinc-300 font-medium pointer-events-none px-4 py-3">Tap to Select .mid File</span>
-    </div>
+  <fieldset>
+    <legend>input</legend>
 
-    <!-- Error/Status Output -->
-    <div id="statusOutput" class="text-sm text-center font-mono h-6 text-emerald-400 flex items-center justify-center" aria-live="polite"></div>
+    <label for="midiFile">MIDI file <span class="req">— required</span></label>
+    <input type="file" id="midiFile" accept=".mid,.midi">
 
-    <!-- Action Button -->
-    <button id="convertBtn" disabled class="touch-target w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border disabled:border-zinc-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center">
-      Convert & Download
-    </button>
-  </main>
+    <label for="templateFile">Template .riffle file <span class="req">— required</span></label>
+    <input type="file" id="templateFile" accept=".riffle">
+    <div class="hint">Any real .riffle file. Its header and chord-name fields (not yet fully decoded) are copied through untouched — only tempo, bar count, and the note data are replaced with your MIDI's.</div>
 
-  <script>
-    const midiInput = document.getElementById('midiInput');
-    const fileLabel = document.getElementById('fileLabel');
-    const convertBtn = document.getElementById('convertBtn');
-    const statusOutput = document.getElementById('statusOutput');
-    
-    let loadedMidi = null;
-    let fileName = 'sequence';
+    <label for="bpmOverride">Tempo override <span class="opt">— optional, BPM</span></label>
+    <input type="number" id="bpmOverride" placeholder="auto-detect from MIDI" min="1" step="0.01">
+    <div class="hint">Use this if your MIDI came from a live-recorded MIDI-out stream rather than a true export — those often carry a placeholder tempo instead of the real one.</div>
 
-    // File Selection Handler
-    midiInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    <label for="barLength">Grid slots per bar <span class="opt">— optional</span></label>
+    <input type="number" id="barLength" placeholder="16" min="1" step="1">
+    <div class="hint">Default 16 = sixteenth-note grid in 4/4. Change this if your MIDI's note grid doesn't divide evenly into 16.</div>
+  </fieldset>
 
-      fileLabel.textContent = file.name;
-      fileName = file.name.replace(/\.[^/.]+$/, "");
-      statusOutput.textContent = 'Parsing MIDI...';
-      statusOutput.className = 'text-sm text-center font-mono h-6 flex items-center justify-center text-emerald-400';
-      convertBtn.disabled = true;
+  <button id="convertBtn">Convert</button>
+  <a id="download" href="#" download>Download .riffle file</a>
+  <div id="log"></div>
 
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        loadedMidi = new Midi(arrayBuffer);
-        const activeTracks = loadedMidi.tracks.filter(t => t.notes.length > 0);
-        statusOutput.textContent = `Loaded: ${activeTracks.length} tracks`;
-        convertBtn.disabled = activeTracks.length === 0;
-      } catch (err) {
-        statusOutput.textContent = 'Error: Invalid MIDI file.';
-        statusOutput.classList.replace('text-emerald-400', 'text-red-400');
-        console.error("MIDI Parse Error:", err);
+  <details>
+    <summary>what's verified vs. still a placeholder</summary>
+    <ul>
+      <li class="ok-dot">Pitch (riffle note = MIDI note − 12) — confirmed exactly against a 64-note reference file</li>
+      <li class="ok-dot">Duration (fixed grid, quarter note = 1000 ticks, independent of tempo) — confirmed</li>
+      <li class="ok-dot">Tempo (header field = BPM × 100) — confirmed</li>
+      <li class="ok-dot">Bar count and its header placeholders — confirmed</li>
+      <li class="warn-dot">Chord-name labels shown in the app — copied from the template, so they may not match your converted notes</li>
+      <li class="warn-dot">A possible second "layer" some .riffle files carry (e.g. a chord-strum accompaniment alongside the melodic line) — not reproduced, since a single MIDI take doesn't contain it</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+const TOTAL_FIELDS = 2944;
+const PITCH_OFFSET = 1024, PITCH_LEN = 512;
+const DUR_OFFSET = 1536, DUR_LEN = 1024;
+
+function readVarLen(view, i) {
+  let val = 0;
+  while (true) {
+    const b = view.getUint8(i); i++;
+    val = (val << 7) | (b & 0x7f);
+    if (!(b & 0x80)) break;
+  }
+  return [val, i];
+}
+
+function parseMidi(buffer) {
+  const view = new DataView(buffer);
+  if (String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3)) !== 'MThd') {
+    throw new Error('Not a MIDI file (missing MThd header)');
+  }
+  const headerLen = view.getUint32(4);
+  const format = view.getUint16(8);
+  const ntrks = view.getUint16(10);
+  const division = view.getUint16(12);
+  if (division & 0x8000) throw new Error('SMPTE time division is not supported');
+
+  let pos = 8 + headerLen;
+  let tempoUspq = 500000; // default 120 bpm
+  const noteEvents = []; // {start, pitch, dur}
+
+  for (let t = 0; t < ntrks; t++) {
+    const chunkType = String.fromCharCode(
+      view.getUint8(pos), view.getUint8(pos+1), view.getUint8(pos+2), view.getUint8(pos+3)
+    );
+    if (chunkType !== 'MTrk') throw new Error('Expected MTrk chunk, found "' + chunkType + '"');
+    const length = view.getUint32(pos + 4);
+    const trackStart = pos + 8;
+    const trackEnd = trackStart + length;
+    pos = trackEnd;
+
+    let i = trackStart;
+    let absTime = 0;
+    let runningStatus = null;
+    const active = {}; // "channel-note" -> startTick
+
+    while (i < trackEnd) {
+      let delta;
+      [delta, i] = readVarLen(view, i);
+      absTime += delta;
+      let status = view.getUint8(i);
+
+      if (status === 0xFF) {
+        i++;
+        const metaType = view.getUint8(i); i++;
+        let mlen;
+        [mlen, i] = readVarLen(view, i);
+        if (metaType === 0x51 && mlen === 3) {
+          tempoUspq = (view.getUint8(i) << 16) | (view.getUint8(i+1) << 8) | view.getUint8(i+2);
+        }
+        i += mlen;
+      } else if (status === 0xF0 || status === 0xF7) {
+        i++;
+        let slen;
+        [slen, i] = readVarLen(view, i);
+        i += slen;
+      } else {
+        if (status & 0x80) {
+          runningStatus = status;
+          i++;
+        } else {
+          status = runningStatus;
+        }
+        const msgType = status & 0xF0;
+        const channel = status & 0x0F;
+        if ([0x80,0x90,0xA0,0xB0,0xE0].includes(msgType)) {
+          const d1 = view.getUint8(i), d2 = view.getUint8(i+1);
+          i += 2;
+          const key = channel + '-' + d1;
+          if (msgType === 0x90 && d2 > 0) {
+            active[key] = absTime;
+          } else if (msgType === 0x80 || (msgType === 0x90 && d2 === 0)) {
+            if (key in active) {
+              const start = active[key];
+              delete active[key];
+              noteEvents.push({ start, pitch: d1, dur: absTime - start });
+            }
+          }
+        } else if (msgType === 0xC0 || msgType === 0xD0) {
+          i += 1;
+        }
       }
-    });
-
-    // Conversion Handler
-    convertBtn.addEventListener('click', () => {
-      if (!loadedMidi) return;
-      
-      try {
-        const riffleCsv = convertMidiToRiffle(loadedMidi);
-        const blob = new Blob([riffleCsv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${fileName}.riffle`;
-        
-        // Append, click, and cleanup
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        statusOutput.textContent = 'Download initiated.';
-      } catch (err) {
-        statusOutput.textContent = 'Conversion failed.';
-        statusOutput.classList.replace('text-emerald-400', 'text-red-400');
-        console.error("Conversion Error:", err);
-      }
-    });
-
-    /**
-     * Converts Tonejs/Midi structure to .riffle CSV format
-     * Utilizes 64-step resolution arrays based on .riffle file analysis.
-     */
-    function convertMidiToRiffle(midi) {
-      const riffle = [];
-      const activeTracks = midi.tracks.filter(t => t.notes.length > 0);
-      const trackCount = activeTracks.length || 1;
-      const steps = 64;
-
-      // 1. Build Header (Indices 0 to 30)
-      const headerPrefix = [
-        200, 10000, trackCount, 0, 69, 0, 0, 1, 0, 0, 0, 3, 0, 1, 0, 
-        10, 7, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0
-      ];
-      riffle.push(...headerPrefix);
-      
-      // 2. Track Length Metadata
-      for(let i = 0; i < trackCount; i++) {
-        riffle.push(4000);
-      }
-      
-      // 3. Post-metadata Padding (115 zeros to safely bridge to sequence data)
-      for(let i = 0; i < 115; i++) {
-        riffle.push(0);
-      }
-
-      // 4. Build Track Sequences (64 Steps per lane)
-      activeTracks.forEach(track => {
-        const pitches = new Array(steps).fill(0);
-        const gates = new Array(steps).fill(-1);
-        const durations = new Array(steps).fill(0);
-        const velocities = new Array(steps).fill(0);
-
-        track.notes.forEach(note => {
-          // Map temporal position to 64-step grid
-          const stepIndex = Math.floor((note.time / midi.duration) * steps) % steps;
-          
-          pitches[stepIndex] = note.midi;
-          gates[stepIndex] = 0; // 0 = active trigger
-          durations[stepIndex] = Math.round(note.duration * 1000);
-          velocities[stepIndex] = Math.round(note.velocity * 127);
-        });
-
-        // Append 64-step sequential lanes for this track
-        riffle.push(...pitches, ...gates, ...durations, ...velocities);
-      });
-
-      return riffle.join(',');
     }
-  </script>
+  }
+
+  noteEvents.sort((a, b) => a.start - b.start);
+  const bpm = 60000000 / tempoUspq;
+  return { noteEvents, division, bpm };
+}
+
+function decodeRiffleFields(buffer) {
+  // .riffle files are UTF-16LE text with a BOM, holding comma-separated integers
+  const decoder = new TextDecoder('utf-16le');
+  let text = decoder.decode(buffer);
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const parts = text.split(',');
+  parts.pop(); // trailing empty string after the final comma
+  return parts.map(Number);
+}
+
+function encodeRiffleFile(fields) {
+  const text = fields.join(',') + ',';
+  const bytes = new Uint8Array(2 + text.length * 2);
+  bytes[0] = 0xFF; bytes[1] = 0xFE; // BOM
+  for (let k = 0; k < text.length; k++) {
+    const code = text.charCodeAt(k);
+    bytes[2 + k*2] = code & 0xFF;
+    bytes[2 + k*2 + 1] = (code >> 8) & 0xFF;
+  }
+  return bytes;
+}
+
+function buildRiffle(noteEvents, division, bpm, templateFields, barLen) {
+  const fields = templateFields.slice();
+  if (fields.length !== TOTAL_FIELDS) {
+    throw new Error(`Template has ${fields.length} fields, expected ${TOTAL_FIELDS} — is this a valid .riffle file?`);
+  }
+
+  fields[1] = Math.round(bpm * 100);
+
+  const pitches = [], durations = [];
+  let countInBar = 0;
+  noteEvents.forEach((e, idx) => {
+    pitches.push(e.pitch - 12);
+    durations.push(Math.round(e.dur * 1000 / division));
+    countInBar++;
+    if (countInBar === barLen && idx !== noteEvents.length - 1) {
+      pitches.push(0);
+      durations.push(0);
+      countInBar = 0;
+    }
+  });
+
+  const nBars = Math.max(1, Math.ceil(noteEvents.length / barLen));
+
+  function place(offset, length, values) {
+    const padded = values.slice();
+    while (padded.length % 8 !== 0) padded.push(0);
+    padded.push(-1);
+    const truncated = padded.length > length ? padded.slice(0, length) : padded;
+    for (let k = 0; k < truncated.length; k++) fields[offset + k] = truncated[k];
+    for (let k = offset + truncated.length; k < offset + length; k++) fields[k] = 0;
+  }
+
+  place(PITCH_OFFSET, PITCH_LEN, pitches);
+  place(DUR_OFFSET, DUR_LEN, durations);
+
+  fields[2] = nBars;
+  for (let k = 31; k < 31 + 8; k++) fields[k] = 0;
+  for (let k = 31; k < 31 + nBars; k++) fields[k] = 4000;
+
+  return fields;
+}
+
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  el.innerHTML = cls ? `<span class="${cls}">${msg}</span>` : msg;
+}
+
+document.getElementById('convertBtn').addEventListener('click', async () => {
+  const midiInput = document.getElementById('midiFile');
+  const templateInput = document.getElementById('templateFile');
+  const bpmOverride = document.getElementById('bpmOverride').value;
+  const barLenInput = document.getElementById('barLength').value;
+  const downloadLink = document.getElementById('download');
+  downloadLink.style.display = 'none';
+
+  if (!midiInput.files[0]) { log('Choose a MIDI file first.', 'err'); return; }
+  if (!templateInput.files[0]) { log('Choose a template .riffle file first.', 'err'); return; }
+
+  try {
+    log('Converting…');
+    const midiBuffer = await midiInput.files[0].arrayBuffer();
+    const templateBuffer = await templateInput.files[0].arrayBuffer();
+
+    const { noteEvents, division, bpm: detectedBpm } = parseMidi(midiBuffer);
+    if (noteEvents.length === 0) throw new Error('No notes found in that MIDI file.');
+
+    const bpm = bpmOverride ? parseFloat(bpmOverride) : detectedBpm;
+    const barLen = barLenInput ? parseInt(barLenInput, 10) : 16;
+
+    const templateFields = decodeRiffleFields(templateBuffer);
+    const fields = buildRiffle(noteEvents, division, bpm, templateFields, barLen);
+    const bytes = encodeRiffleFile(fields);
+
+    const blob = new Blob([bytes], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const outName = midiInput.files[0].name.replace(/\.midi?$/i, '') + '.riffle';
+    downloadLink.href = url;
+    downloadLink.download = outName;
+    downloadLink.style.display = 'block';
+    downloadLink.textContent = `Download ${outName}`;
+
+    const bars = fields[2];
+    log(`Done — ${noteEvents.length} notes, ${bpm.toFixed(2)} BPM, ${bars} bar${bars === 1 ? '' : 's'}.`, 'ok');
+  } catch (err) {
+    console.error(err);
+    log('Error: ' + err.message, 'err');
+  }
+});
+</script>
 </body>
 </html>
