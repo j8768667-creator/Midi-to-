@@ -183,9 +183,9 @@
     <label for="midiFile">MIDI file <span class="req">— required</span></label>
     <input type="file" id="midiFile" accept=".mid,.midi">
 
-    <label for="templateFile">Template .riffle file <span class="req">— required</span></label>
+    <label for="templateFile">Template .riffle file <span class="opt">— optional</span></label>
     <input type="file" id="templateFile" accept=".riffle">
-    <div class="hint">Any real .riffle file. Its header and chord-name fields (not yet fully decoded) are copied through untouched — only tempo, bar count, and the note data are replaced with your MIDI's.</div>
+    <div class="hint">A known-good template is built in, so this is optional — only upload one if you want a different starting header. Either way, only its header donates fields; the note data and several specific header fields (see below) are always fully computed from your MIDI.</div>
 
     <label for="bpmOverride">Tempo override <span class="opt">— optional, BPM</span></label>
     <input type="number" id="bpmOverride" placeholder="auto-detect from MIDI" min="1" step="0.01">
@@ -204,11 +204,14 @@
     <summary>what's verified vs. still a placeholder</summary>
     <ul>
       <li class="ok-dot">Pitch (riffle note = MIDI note − 12) — confirmed exactly against a 64-note reference file</li>
-      <li class="ok-dot">Duration (fixed grid, quarter note = 1000 ticks, independent of tempo) — confirmed</li>
+      <li class="ok-dot">Duration (fixed grid, quarter note = 1000 ticks, independent of tempo) — confirmed; kept as real per-note values rather than left untouched, since a separate tool's "duration doesn't matter" claim was tested here and directly contradicted by this project's own byte-exact ground truth</li>
       <li class="ok-dot">Tempo (header field = BPM × 100) — confirmed</li>
-      <li class="ok-dot">Bar breaks placed by elapsed time against the real time signature, with explicit rests for silence — confirmed on a monophonic example; fixes an earlier bug where bars were split by a fixed note count, which badly misaligned anything with mixed note lengths</li>
+      <li class="ok-dot">Bar breaks placed by elapsed time against the real time signature, with explicit rests for silence — confirmed on a monophonic example</li>
+      <li class="ok-dot">Header fields 7,11,12,13,14,16,42,43,48 zeroed and fields 5→7, 46→5 — adopted from a separate real-world test that watched RifflerFLOW itself re-save a converted file</li>
+      <li class="ok-dot">Safety caps: 8 bars and 128 note-slots, whichever is hit first — the 8-bar limit came from a real crash in testing; the 128-slot figure is adopted from a separate confirmed-safe test</li>
       <li class="warn-dot">Chords (simultaneous notes) are unrolled into a fast sequential arpeggio, each keeping its own sustain length — a reasonable but <em>unverified</em> choice; our only confirmed example never had two notes at once</li>
-      <li class="warn-dot">Chord-name labels shown in the app — copied from the template, so they may not match your converted notes</li>
+      <li class="warn-dot">A claimed pitch ceiling of 64 (from that same separate test) was checked against this project's ground truth and found to be contradicted by a real file — not applied</li>
+      <li class="warn-dot">Chord-name labels shown in the app — not reproduced, so they may not match your converted notes</li>
       <li class="warn-dot">A possible second "layer" some .riffle files carry (e.g. a chord-strum accompaniment alongside the melodic line) — not reproduced</li>
     </ul>
   </details>
@@ -218,6 +221,11 @@
 const TOTAL_FIELDS = 2944;
 const PITCH_OFFSET = 1024, PITCH_LEN = 512;
 const DUR_OFFSET = 1536, DUR_LEN = 1024;
+
+// A known-good, real .riffle file (Em7, 93bpm) baked in so a template
+// upload is optional. Only its header fields are actually used --
+// pitch/duration/tempo/bars are always overwritten by buildRiffle.
+const DEFAULT_TEMPLATE_STR = "200,9300,8,0,69,0,0,1,0,0,0,3,1,1,4,5,2,1,1,7,0,0,0,0,0,0,0,0,0,1,0,4000,4000,4000,4000,4000,4000,4000,4000,0,0,0,81,78,13,69,0,8,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,52,74,64,52,64,74,64,67,64,0,66,69,66,69,66,69,50,66,50,0,43,59,54,43,54,59,54,55,54,0,48,52,48,52,48,60,50,66,50,0,52,74,64,52,64,74,64,67,64,0,66,69,66,69,66,69,50,66,50,0,43,59,54,43,54,59,54,55,54,0,48,52,48,52,48,60,50,66,50,0,-1,0,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,500,500,500,500,500,500,500,250,250,0,-1,0,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,126,122,124,126,124,122,124,123,124,0,124,123,124,123,124,123,126,124,126,0,126,122,124,126,124,122,124,123,124,0,126,124,126,124,126,122,126,124,126,0,126,122,124,126,124,122,124,123,124,0,124,123,124,123,124,123,126,124,126,0,126,122,124,126,124,122,124,123,124,0,126,124,126,124,126,122,126,124,126,0,-1,0,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,69,69,69,69,69,69,69,69,68,68,68,68,68,68,68,68,71,71,71,71,71,71,71,71,67,67,67,67,67,67,68,68,69,69,69,69,69,69,69,69,68,68,68,68,68,68,68,68,71,71,71,71,71,71,71,71,67,67,67,67,67,67,68,68,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,88,69,69,69,69,69,69,69,69,68,68,68,68,68,68,68,68,71,71,71,71,71,71,71,71,67,67,67,67,67,67,68,68,69,69,69,69,69,69,69,69,68,68,68,68,68,68,68,68,71,71,71,71,71,71,71,71,67,67,67,67,67,67,68,68,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,69,42,42,42,42,42,42,42,42,32,32,32,32,32,32,32,32,41,41,41,41,41,41,41,41,32,32,32,32,32,32,32,32,42,42,42,42,42,42,42,42,32,32,32,32,32,32,32,32,41,41,41,41,41,41,41,41,32,32,32,32,32,32,32,32,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
 
 function readVarLen(view, i) {
   let val = 0;
@@ -323,7 +331,12 @@ function decodeRiffleFields(buffer) {
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   const parts = text.split(',');
   parts.pop(); // trailing empty string after the final comma
-  return parts.map(Number);
+  const fields = parts.map(Number);
+  let blankTemplateWarning = null;
+  if (fields[42] === 0 && fields[43] === 0 && fields[44] === 0) {
+    blankTemplateWarning = "This template has [0, 0, 0] at header offsets 42-44. Every real, working .riffle file examined so far has non-zero values there — the built-in 'Blank Riff' preset is the one known example of a template with zeros there, and converting with it produced a file that loaded without error but showed no notes in the app. Use a template from an actual saved/exported riff instead.";
+  }
+  return { fields, blankTemplateWarning };
 }
 
 function encodeRiffleFile(fields) {
@@ -342,7 +355,8 @@ function flattenToSequence(noteEvents, division) {
   // Group simultaneous notes (same start tick -- real chords) into
   // chronological steps, insert explicit rests for silence gaps, and
   // arpeggiate chords low-to-high (see midi_to_riffle.py for the full
-  // reasoning and caveats -- this mirrors that logic exactly).
+  // reasoning and caveats -- this mirrors that logic exactly). Pitch here
+  // is still raw MIDI (or 0 for a rest) -- the -12 shift happens later.
   if (noteEvents.length === 0) return [];
 
   const steps = [];
@@ -367,14 +381,14 @@ function flattenToSequence(noteEvents, division) {
       playhead = start;
     }
     for (const e of group) {
-      seq.push({ pitch: e.pitch - 12, dur: Math.round(e.dur * 1000 / division) });
+      seq.push({ pitch: e.pitch, dur: Math.round(e.dur * 1000 / division) });
       playhead += e.dur;
     }
   }
   return seq;
 }
 
-function buildRiffle(noteEvents, division, bpm, timeSig, templateFields) {
+function buildRiffle(noteEvents, division, bpm, timeSig, templateFields, maxSlots = 128) {
   const fields = templateFields.slice();
   if (fields.length !== TOTAL_FIELDS) {
     throw new Error(`Template has ${fields.length} fields, expected ${TOTAL_FIELDS} — is this a valid .riffle file?`);
@@ -390,10 +404,22 @@ function buildRiffle(noteEvents, division, bpm, timeSig, templateFields) {
 
   const sequence = flattenToSequence(noteEvents, division);
 
+  // Pitch mapping: MIDI note - 12. A separate real-world test claimed
+  // RifflerFLOW also clamps anything above 64 down by octaves -- checked
+  // against this project's own byte-exact ground truth and found FALSE
+  // (a real, authentic file contains an untouched value of 66), so no
+  // upper clamp is applied. We do floor at 0, since no real sample file
+  // has ever shown a negative pitch value.
+  function toRifflePitch(midiPitch) {
+    let note = midiPitch - 12;
+    while (note < 0) note += 12;
+    return note;
+  }
+
   const pitches = [], durations = [];
   let barAccum = 0;
   sequence.forEach((e, idx) => {
-    pitches.push(e.pitch);
+    pitches.push(e.pitch !== 0 ? toRifflePitch(e.pitch) : 0);
     durations.push(e.dur);
     barAccum += e.dur;
     if (barAccum >= barLenRiffleTicks && idx !== sequence.length - 1) {
@@ -406,24 +432,26 @@ function buildRiffle(noteEvents, division, bpm, timeSig, templateFields) {
   const totalTicks = sequence.reduce((sum, e) => sum + e.dur, 0);
   let nBars = Math.max(1, Math.ceil(totalTicks / barLenRiffleTicks));
 
-  // SAFETY CAP: every sample file this format was reverse-engineered from
-  // tops out at 8 bars. A larger bar count crashed RifflerFLOW in testing
-  // (likely by overwriting header fields just past this region, or the
-  // app simply not supporting longer riffs). Truncate rather than emit
-  // an untested value.
-  let cappedPitches = pitches, cappedDurations = durations;
-  let capWarning = null;
-  if (nBars > 8) {
-    capWarning = `This MIDI produces a ${nBars}-bar riff — beyond anything confirmed safe for this format (max seen: 8 bars), and a larger value previously crashed RifflerFLOW. Truncated to the first 8 bars; the rest of the MIDI was cut off.`;
-    const capTicks = 8 * barLenRiffleTicks;
-    let cum = 0, cutoff = pitches.length;
-    for (let k = 0; k < durations.length; k++) {
-      cum += durations[k];
-      if (cum > capTicks) { cutoff = k; break; }
-    }
+  // SAFETY CAPS: every sample file this format was reverse-engineered from
+  // tops out at 8 bars (confirmed by a real crash in testing beyond that),
+  // and a separate real-world test found 128 note-slots to be a
+  // confirmed-safe ceiling. Truncate at whichever limit is hit first.
+  const capTicks = 8 * barLenRiffleTicks;
+  let cum = 0, timeCutoff = pitches.length;
+  for (let k = 0; k < durations.length; k++) {
+    cum += durations[k];
+    if (cum > capTicks) { timeCutoff = k; break; }
+  }
+  const slotCutoff = Math.min(maxSlots, pitches.length);
+  const cutoff = Math.min(timeCutoff, slotCutoff);
+
+  let cappedPitches = pitches, cappedDurations = durations, capWarning = null;
+  if (cutoff < pitches.length) {
+    const reason = timeCutoff <= slotCutoff ? '8-bar limit' : `${maxSlots}-note-slot limit`;
+    capWarning = `Truncated at the ${reason} (${cutoff} of ${pitches.length} slots kept). This format hasn't been confirmed safe beyond 8 bars / ${maxSlots} note-slots in real testing.`;
     cappedPitches = pitches.slice(0, cutoff);
     cappedDurations = durations.slice(0, cutoff);
-    nBars = 8;
+    nBars = Math.min(nBars, Math.max(1, Math.ceil(cappedDurations.reduce((s, d) => s + d, 0) / barLenRiffleTicks)));
   }
 
   function place(offset, length, values) {
@@ -442,6 +470,15 @@ function buildRiffle(noteEvents, division, bpm, timeSig, templateFields) {
   for (let k = 31; k < 31 + 8; k++) fields[k] = 0;
   for (let k = 31; k < 31 + nBars; k++) fields[k] = 4000;
 
+  // Fields observed to change when RifflerFLOW itself re-saves a converted
+  // file (from a separate real-world A/B test): stale descriptor metadata
+  // belonging to whatever donated the header, not derived from the new
+  // notes -- cleared/set to match what a freshly-converted file looks
+  // like after RifflerFLOW itself processes it.
+  for (const idx of [7, 11, 12, 13, 14, 16, 42, 43, 48]) fields[idx] = 0;
+  fields[5] = 7;
+  fields[46] = 5;
+
   return { fields, capWarning };
 }
 
@@ -459,12 +496,10 @@ document.getElementById('convertBtn').addEventListener('click', async () => {
   downloadLink.style.display = 'none';
 
   if (!midiInput.files[0]) { log('Choose a MIDI file first.', 'err'); return; }
-  if (!templateInput.files[0]) { log('Choose a template .riffle file first.', 'err'); return; }
 
   try {
     log('Converting…');
     const midiBuffer = await midiInput.files[0].arrayBuffer();
-    const templateBuffer = await templateInput.files[0].arrayBuffer();
 
     const { noteEvents, division, bpm: detectedBpm, timeSig: detectedTimeSig } = parseMidi(midiBuffer);
     if (noteEvents.length === 0) throw new Error('No notes found in that MIDI file.');
@@ -475,7 +510,15 @@ document.getElementById('convertBtn').addEventListener('click', async () => {
       timeSig = timeSigOverride.trim().split('/').map(Number);
     }
 
-    const templateFields = decodeRiffleFields(templateBuffer);
+    let templateFields, blankTemplateWarning;
+    if (templateInput.files[0]) {
+      const templateBuffer = await templateInput.files[0].arrayBuffer();
+      ({ fields: templateFields, blankTemplateWarning } = decodeRiffleFields(templateBuffer));
+    } else {
+      templateFields = DEFAULT_TEMPLATE_STR.split(',').map(Number);
+      blankTemplateWarning = null;
+    }
+
     const { fields, capWarning } = buildRiffle(noteEvents, division, bpm, timeSig, templateFields);
     const bytes = encodeRiffleFile(fields);
 
@@ -490,8 +533,9 @@ document.getElementById('convertBtn').addEventListener('click', async () => {
     const nChords = noteEvents.length - new Set(noteEvents.map(e => e.start)).size;
     const bars = fields[2];
     let msg = `Done — ${noteEvents.length} notes (${nChords} in chords), ${bpm.toFixed(2)} BPM, ${timeSig[0]}/${timeSig[1]}, ${bars} bar${bars === 1 ? '' : 's'}.`;
+    if (blankTemplateWarning) msg += `\n\n⚠ ${blankTemplateWarning}`;
     if (capWarning) msg += `\n\n⚠ ${capWarning}`;
-    log(msg, capWarning ? 'err' : 'ok');
+    log(msg, (blankTemplateWarning || capWarning) ? 'err' : 'ok');
   } catch (err) {
     console.error(err);
     log('Error: ' + err.message, 'err');
