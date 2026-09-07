@@ -3,23 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>RifflerFLOW MIDI Converter</title>
+  <title>MIDI to .riffle Converter</title>
   <style>
     :root {
-      --bg-main: #0e1013;
-      --bg-card: #181a20;
-      --bg-input: #22252e;
-      --border-line: #2d313d;
-      --text-high: #f3f4f6;
-      --text-low: #8b92a1;
+      --bg-base: #0f1115;
+      --bg-panel: #181b22;
+      --bg-field: #212530;
+      --border-subtle: #2d3240;
+      --border-focus: #3b82f6;
+      --text-main: #f1f3f7;
+      --text-muted: #8a92a3;
       --accent: #2563eb;
-      --accent-active: #1d4ed8;
-      --accent-dim: rgba(37, 99, 235, 0.16);
+      --accent-hover: #1d4ed8;
+      --accent-dim: rgba(37, 99, 235, 0.15);
       --success: #10b981;
-      --success-dim: rgba(16, 185, 129, 0.16);
-      --error: #ef4444;
-      --error-dim: rgba(239, 68, 68, 0.16);
-      --touch-min: 44px;
+      --success-dim: rgba(16, 185, 129, 0.15);
+      --danger: #ef4444;
+      --danger-dim: rgba(239, 68, 68, 0.15);
+      --touch-size: 44px;
     }
 
     * {
@@ -31,8 +32,8 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg-main);
-      color: var(--text-high);
+      background-color: var(--bg-base);
+      color: var(--text-main);
       touch-action: manipulation;
       min-height: 100dvh;
       display: flex;
@@ -44,8 +45,8 @@
 
     header {
       padding: 14px 20px;
-      background: var(--bg-card);
-      border-bottom: 1px solid var(--border-line);
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -73,7 +74,7 @@
 
     main {
       flex: 1;
-      max-width: 1040px;
+      max-width: 1080px;
       width: 100%;
       margin: 0 auto;
       padding: 20px;
@@ -89,9 +90,9 @@
       }
     }
 
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-line);
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
       border-radius: 12px;
       padding: 20px;
       display: flex;
@@ -99,11 +100,11 @@
       gap: 16px;
     }
 
-    .card-title {
+    .panel-title {
       font-size: 0.92rem;
       font-weight: 600;
       padding-bottom: 10px;
-      border-bottom: 1px solid var(--border-line);
+      border-bottom: 1px solid var(--border-subtle);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -111,11 +112,11 @@
 
     .dropzone {
       position: relative;
-      border: 2px dashed var(--border-line);
+      border: 2px dashed var(--border-subtle);
       border-radius: 8px;
       padding: 24px 16px;
       text-align: center;
-      background: var(--bg-input);
+      background: var(--bg-field);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -141,7 +142,7 @@
       z-index: 10;
     }
 
-    .form-row {
+    .control-group {
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -150,649 +151,9 @@
     label {
       font-size: 0.72rem;
       font-weight: 600;
-      color: var(--text-low);
+      color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
 
     select {
-      min-height: var(--touch-min);
-      padding: 0 12px;
-      background: var(--bg-input);
-      border: 1px solid var(--border-line);
-      border-radius: 8px;
-      color: var(--text-high);
-      font-size: 0.95rem;
-      font-family: inherit;
-    }
-
-    select:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    .stat-row {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-    }
-
-    .stat-box {
-      background: var(--bg-input);
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border-line);
-    }
-
-    .stat-label {
-      font-size: 0.68rem;
-      color: var(--text-low);
-      text-transform: uppercase;
-      margin-bottom: 2px;
-    }
-
-    .stat-value {
-      font-size: 1.1rem;
-      font-weight: 700;
-    }
-
-    .btn {
-      min-height: var(--touch-min);
-      min-width: var(--touch-min);
-      padding: 0 20px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      touch-action: manipulation;
-      transition: background 0.15s ease;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: #ffffff;
-    }
-
-    .btn-primary:active {
-      background: var(--accent-active);
-    }
-
-    .btn-secondary {
-      background: var(--bg-input);
-      color: var(--text-high);
-      border: 1px solid var(--border-line);
-    }
-
-    .btn:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-    }
-
-    .slot-preview {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      max-height: 250px;
-      overflow-y: auto;
-      background: var(--bg-main);
-      border: 1px solid var(--border-line);
-      border-radius: 8px;
-      padding: 8px;
-    }
-
-    .slot-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 6px 10px;
-      background: var(--bg-input);
-      border-radius: 4px;
-      font-size: 0.8rem;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    }
-
-    .slot-row.attack {
-      border-left: 3px solid var(--accent);
-    }
-
-    .slot-row.sustain {
-      border-left: 3px solid var(--text-low);
-      opacity: 0.75;
-    }
-
-    .banner {
-      padding: 12px 14px;
-      border-radius: 8px;
-      font-size: 0.84rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .banner-info {
-      background: var(--accent-dim);
-      color: #93c5fd;
-      border: 1px solid rgba(37, 99, 235, 0.3);
-    }
-
-    .banner-success {
-      background: var(--success-dim);
-      color: var(--success);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-    }
-
-    .banner-error {
-      background: var(--error-dim);
-      color: #fca5a5;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-  </style>
-</head>
-<body>
-
-  <header>
-    <div class="brand">
-      <span>MIDI &rarr; .riffle</span>
-      <span class="badge">Ground-Truth Engine</span>
-    </div>
-    <button type="button" class="btn btn-secondary" id="btnReset">Reset</button>
-  </header>
-
-  <main>
-    <!-- Left Column: Source Configuration -->
-    <section class="card">
-      <div class="card-title">
-        <span>1. Source MIDI</span>
-      </div>
-
-      <div class="dropzone" id="dropzone">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-low);">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="12" y1="18" x2="12" y2="12"></line>
-          <line x1="9" y1="15" x2="15" y2="15"></line>
-        </svg>
-        <span id="filePrompt">Select MIDI File (.mid, .midi)</span>
-        <input type="file" id="midiInput" accept=".mid,.midi,audio/midi,audio/x-midi">
-      </div>
-
-      <div class="form-row">
-        <label for="trackSelect">Track</label>
-        <select id="trackSelect" disabled>
-          <option value="none">No file loaded</option>
-        </select>
-      </div>
-
-      <div class="form-row">
-        <label for="subdivSelect">Grid Subdivision (Sustain Splitting)</label>
-        <select id="subdivSelect">
-          <option value="500" selected>8th Note Grid (500 ticks - Riffler Standard)</option>
-          <option value="250">16th Note Grid (250 ticks)</option>
-          <option value="1000">Quarter Note Grid (1000 ticks)</option>
-          <option value="0">Unsplit (Raw Note Durations)</option>
-        </select>
-      </div>
-
-      <div class="stat-row">
-        <div class="stat-box">
-          <div class="stat-label">BPM (Header [1])</div>
-          <div class="stat-value" id="bpmValue">--</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">Compiled Slots</div>
-          <div class="stat-value" id="slotValue">0</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Right Column: Verification & Export -->
-    <section class="card">
-      <div class="card-title">
-        <span>2. Pattern Structure & Export</span>
-      </div>
-
-      <div id="statusContainer">
-        <div class="banner banner-info">
-          Load a MIDI file. Durations and Gate channels (124 attack, 0 sustain) will compile into verified 2,944-token layout.
-        </div>
-      </div>
-
-      <div class="form-row">
-        <label>Slot Channel Inspection</label>
-        <div class="slot-preview" id="slotPreview">
-          <div class="slot-row" style="color: var(--text-low); justify-content: center;">No sequence compiled</div>
-        </div>
-      </div>
-
-      <button type="button" class="btn btn-primary" id="btnExport" disabled style="margin-top: auto;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        <span>Export .riffle Pattern</span>
-      </button>
-    </section>
-  </main>
-
-  <script>
-    (function () {
-      'use strict';
-
-      // Application State
-      let midiParsedData = null;
-      let compiledSlots = null;
-      let detectedBpm = 120;
-      let baseFilename = "pattern";
-
-      // DOM References
-      const midiInput = document.getElementById('midiInput');
-      const filePrompt = document.getElementById('filePrompt');
-      const dropzone = document.getElementById('dropzone');
-      const trackSelect = document.getElementById('trackSelect');
-      const subdivSelect = document.getElementById('subdivSelect');
-      const bpmValue = document.getElementById('bpmValue');
-      const slotValue = document.getElementById('slotValue');
-      const slotPreview = document.getElementById('slotPreview');
-      const btnExport = document.getElementById('btnExport');
-      const btnReset = document.getElementById('btnReset');
-      const statusContainer = document.getElementById('statusContainer');
-
-      // Clear input value on touch to guarantee change event fires on repeat selections
-      midiInput.addEventListener('pointerdown', () => {
-        midiInput.value = '';
-      });
-
-      midiInput.addEventListener('change', handleFileSelected);
-
-      // Drag and drop events
-      ['dragenter', 'dragover'].forEach(name => {
-        dropzone.addEventListener(name, (e) => {
-          e.preventDefault();
-          dropzone.classList.add('dragover');
-        });
-      });
-      ['dragleave', 'drop'].forEach(name => {
-        dropzone.addEventListener(name, (e) => {
-          e.preventDefault();
-          dropzone.classList.remove('dragover');
-        });
-      });
-      dropzone.addEventListener('drop', (e) => {
-        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
-          midiInput.files = e.dataTransfer.files;
-          handleFileSelected();
-        }
-      });
-
-      trackSelect.addEventListener('change', compileSequence);
-      subdivSelect.addEventListener('change', compileSequence);
-      btnReset.addEventListener('click', resetAll);
-      btnExport.addEventListener('click', generateRiffleExport);
-
-      function updateStatus(message, type = 'info') {
-        statusContainer.innerHTML = `<div class="banner banner-${type}">${message}</div>`;
-      }
-
-      function resetAll() {
-        midiInput.value = '';
-        midiParsedData = null;
-        compiledSlots = null;
-        detectedBpm = 120;
-        baseFilename = "pattern";
-        filePrompt.textContent = "Select MIDI File (.mid, .midi)";
-        trackSelect.innerHTML = '<option value="none">No file loaded</option>';
-        trackSelect.disabled = true;
-        bpmValue.textContent = "--";
-        slotValue.textContent = "0";
-        slotPreview.innerHTML = '<div class="slot-row" style="color: var(--text-low); justify-content: center;">No sequence compiled</div>';
-        btnExport.disabled = true;
-        updateStatus("Load a MIDI file. Durations and Gate channels (124 attack, 0 sustain) will compile into verified 2,944-token layout.", "info");
-      }
-
-      async function handleFileSelected() {
-        const file = midiInput.files[0];
-        if (!file) return;
-
-        baseFilename = file.name.replace(/\.[^/.]+$/, "");
-        filePrompt.textContent = file.name;
-
-        try {
-          const buffer = await file.arrayBuffer();
-          midiParsedData = parseStandardMidi(buffer);
-
-          if (!midiParsedData || midiParsedData.tracks.length === 0) {
-            throw new Error("No tracks found in the provided MIDI file.");
-          }
-
-          // Populate track selection
-          trackSelect.innerHTML = '';
-          let optimalIndex = 0;
-          let highestNotes = -1;
-
-          midiParsedData.tracks.forEach((trk, idx) => {
-            const opt = document.createElement('option');
-            opt.value = idx;
-            opt.textContent = `Track ${idx + 1} (${trk.notes.length} notes)`;
-            trackSelect.appendChild(opt);
-
-            if (trk.notes.length > highestNotes) {
-              highestNotes = trk.notes.length;
-              optimalIndex = idx;
-            }
-          });
-
-          trackSelect.disabled = false;
-          trackSelect.value = optimalIndex;
-
-          detectedBpm = midiParsedData.bpm || 120;
-          bpmValue.textContent = Math.round(detectedBpm);
-
-          compileSequence();
-        } catch (err) {
-          updateStatus(`Error parsing MIDI: ${err.message}`, "error");
-          btnExport.disabled = true;
-        }
-      }
-
-      // Standard MIDI File Binary Parser
-      function parseStandardMidi(buffer) {
-        const view = new DataView(buffer);
-        let ptr = 0;
-
-        function readString(len) {
-          let str = "";
-          for (let i = 0; i < len; i++) {
-            str += String.fromCharCode(view.getUint8(ptr++));
-          }
-          return str;
-        }
-
-        const magic = readString(4);
-        if (magic !== "MThd") throw new Error("Invalid MIDI header (expected 'MThd').");
-
-        const headerLen = view.getUint32(ptr); ptr += 4;
-        const format = view.getUint16(ptr); ptr += 2;
-        const numTracks = view.getUint16(ptr); ptr += 2;
-        const division = view.getUint16(ptr); ptr += 2;
-
-        if (headerLen > 6) ptr += (headerLen - 6);
-
-        let initialBpm = 120;
-        const tracks = [];
-
-        for (let t = 0; t < numTracks; t++) {
-          if (ptr >= buffer.byteLength) break;
-          const trkChunk = readString(4);
-          const trkLen = view.getUint32(ptr); ptr += 4;
-          const trkEnd = ptr + trkLen;
-
-          let tickAccum = 0;
-          let runningStatus = 0;
-          const activeNotes = {};
-          const trackNotes = [];
-
-          while (ptr < trkEnd) {
-            // Read variable-length quantity (delta-time)
-            let delta = 0;
-            while (true) {
-              const b = view.getUint8(ptr++);
-              delta = (delta << 7) | (b & 0x7F);
-              if (!(b & 0x80)) break;
-            }
-            tickAccum += delta;
-
-            let status = view.getUint8(ptr);
-            if (status & 0x80) {
-              runningStatus = status;
-              ptr++;
-            } else {
-              status = runningStatus;
-            }
-
-            const type = status & 0xF0;
-
-            if (status === 0xFF) {
-              // Meta Event
-              const metaType = view.getUint8(ptr++);
-              let metaLen = 0;
-              while (true) {
-                const b = view.getUint8(ptr++);
-                metaLen = (metaLen << 7) | (b & 0x7F);
-                if (!(b & 0x80)) break;
-              }
-              if (metaType === 0x51 && metaLen === 3) {
-                // Set Tempo: Microseconds per quarter note
-                const usPerQuarter = (view.getUint8(ptr) << 16) | (view.getUint8(ptr + 1) << 8) | view.getUint8(ptr + 2);
-                initialBpm = 60000000 / usPerQuarter;
-              }
-              ptr += metaLen;
-            } else if (status === 0xF0 || status === 0xF7) {
-              // Sysex
-              let sysexLen = 0;
-              while (true) {
-                const b = view.getUint8(ptr++);
-                sysexLen = (sysexLen << 7) | (b & 0x7F);
-                if (!(b & 0x80)) break;
-              }
-              ptr += sysexLen;
-            } else if (type === 0x90) {
-              // Note On
-              const note = view.getUint8(ptr++);
-              const vel = view.getUint8(ptr++);
-              if (vel > 0) {
-                activeNotes[note] = { note, startTicks: tickAccum };
-              } else if (activeNotes[note]) {
-                trackNotes.push({
-                  note,
-                  startTicks: activeNotes[note].startTicks,
-                  durationTicks: tickAccum - activeNotes[note].startTicks
-                });
-                delete activeNotes[note];
-              }
-            } else if (type === 0x80) {
-              // Note Off
-              const note = view.getUint8(ptr++);
-              ptr++; // ignore release velocity
-              if (activeNotes[note]) {
-                trackNotes.push({
-                  note,
-                  startTicks: activeNotes[note].startTicks,
-                  durationTicks: tickAccum - activeNotes[note].startTicks
-                });
-                delete activeNotes[note];
-              }
-            } else if (type === 0xC0 || type === 0xD0) {
-              ptr += 1;
-            } else {
-              ptr += 2;
-            }
-          }
-
-          trackNotes.sort((a, b) => a.startTicks - b.startTicks);
-          tracks.push({ notes: trackNotes });
-        }
-
-        return {
-          bpm: initialBpm,
-          ticksPerQuarter: (division & 0x8000) ? 480 : division,
-          tracks
-        };
-      }
-
-      function compileSequence() {
-        const trackIdx = parseInt(trackSelect.value, 10);
-        const track = midiParsedData.tracks[trackIdx];
-
-        if (!track || track.notes.length === 0) {
-          updateStatus("Selected track contains 0 notes.", "error");
-          slotValue.textContent = "0";
-          slotPreview.innerHTML = '<div class="slot-row" style="color: var(--text-low); justify-content: center;">Track has 0 notes</div>';
-          btnExport.disabled = true;
-          return;
-        }
-
-        const tpq = midiParsedData.ticksPerQuarter || 480;
-        const tickScale = 1000 / tpq; // Scale so quarter note = 1000 ticks
-        const gridStep = parseInt(subdivSelect.value, 10);
-
-        const slots = [];
-
-        // Safety ceiling: 128 slots max
-        for (let i = 0; i < track.notes.length && slots.length < 128; i++) {
-          const raw = track.notes[i];
-          const rifflePitch = raw.note - 12; // Ground Truth: MIDI note - 12
-          const scaledDuration = Math.round(raw.durationTicks * tickScale);
-
-          if (gridStep > 0 && scaledDuration > gridStep) {
-            // Sustained note spanning grid intervals:
-            // First subdivision slot has gate = 124 (attack)
-            // Subsequent tied repeats have gate = 0 (ringing continuation)
-            let rem = scaledDuration;
-            let isAttack = true;
-            while (rem > 0 && slots.length < 128) {
-              const dur = Math.min(rem, gridStep);
-              slots.push({
-                pitch: rifflePitch,
-                duration: dur,
-                gate: isAttack ? 124 : 0,
-                type: isAttack ? 'attack' : 'sustain'
-              });
-              rem -= dur;
-              isAttack = false;
-            }
-          } else {
-            slots.push({
-              pitch: rifflePitch,
-              duration: scaledDuration,
-              gate: 124,
-              type: 'attack'
-            });
-          }
-        }
-
-        compiledSlots = slots;
-        slotValue.textContent = slots.length;
-
-        // Render preview
-        slotPreview.innerHTML = '';
-        slots.slice(0, 32).forEach((s, idx) => {
-          const row = document.createElement('div');
-          row.className = `slot-row ${s.type}`;
-          row.innerHTML = `
-            <span>#${idx + 1} Pitch: ${s.pitch} (M${s.pitch + 12})</span>
-            <span>Dur: ${s.duration}</span>
-            <span>Gate: ${s.gate} ${s.gate === 0 ? '(Tie)' : '(Atk)'}</span>
-          `;
-          slotPreview.appendChild(row);
-        });
-
-        if (slots.length > 32) {
-          const more = document.createElement('div');
-          more.className = 'slot-row';
-          more.style.color = 'var(--text-low)';
-          more.style.justifyContent = 'center';
-          more.textContent = `+ ${slots.length - 32} more slots compiled`;
-          slotPreview.appendChild(more);
-        }
-
-        btnExport.disabled = false;
-        updateStatus(`Compiled ${slots.length} pattern slots. Dual-array duration and gate tables verified. Ready to export.`, "success");
-      }
-
-      function generateRiffleExport() {
-        if (!compiledSlots || compiledSlots.length === 0) return;
-
-        // 1. Allocate full 2,944 integer array
-        const tokens = new Int32Array(2944);
-
-        // 2. Base Header (Indices 0..1023)
-        // Adopting verified ground truth structure from verified .riffle exports
-        tokens[0] = 200;
-        tokens[1] = Math.round(detectedBpm * 100);
-        tokens[2] = 8;
-        tokens[4] = 69;
-        tokens[5] = 7;
-        tokens[11] = 2;
-        tokens[12] = 1;
-        tokens[15] = 5;
-        tokens[17] = 1;
-        tokens[18] = 1;
-        tokens[19] = 7;
-        tokens[29] = 1;
-        for (let b = 31; b <= 38; b++) {
-          tokens[b] = 4000;
-        }
-        tokens[42] = 81;
-        tokens[43] = 78;
-        tokens[45] = 69;
-        tokens[46] = 5;
-        tokens[48] = 8;
-
-        // 3. Pitch Array: 1024..1535 (512 slots)
-        // 4. Duration Array: 1536..2047 (512 slots)
-        // 5. Gate Array: 2048..2559 (512 slots)
-        const count = compiledSlots.length;
-        for (let i = 0; i < count; i++) {
-          tokens[1024 + i] = compiledSlots[i].pitch;
-          tokens[1536 + i] = compiledSlots[i].duration;
-          tokens[2048 + i] = compiledSlots[i].gate;
-        }
-
-        // Multiple-of-8 padding followed by sentinel -1
-        const paddedCount = Math.ceil(count / 8) * 8;
-        for (let i = count; i < paddedCount; i++) {
-          tokens[1024 + i] = 0;
-          tokens[1536 + i] = 0;
-          tokens[2048 + i] = 0;
-        }
-
-        if (paddedCount < 512) {
-          tokens[1024 + paddedCount] = -1;
-          tokens[1536 + paddedCount] = -1;
-          tokens[2048 + paddedCount] = -1;
-        }
-
-        // 6. Chord Block: 2560..2943 (384 slots)
-        for (let i = 2560; i < 2944; i++) {
-          tokens[i] = 69; // 'E' base padding
-        }
-        tokens[2627] = 88; // End of section marker observed in real sample files
-
-        // 7. Output Encoding: UTF-16LE text with leading BOM (0xFEFF) and trailing comma
-        const textData = tokens.join(",") + ",";
-        const charLen = textData.length;
-        const outBuffer = new ArrayBuffer(2 + charLen * 2);
-        const dataView = new DataView(outBuffer);
-
-        // Set Byte Order Mark (0xFEFF) in Little-Endian
-        dataView.setUint16(0, 0xFEFF, true);
-
-        let bytePtr = 2;
-        for (let i = 0; i < charLen; i++) {
-          dataView.setUint16(bytePtr, textData.charCodeAt(i), true);
-          bytePtr += 2;
-        }
-
-        // Trigger native download
-        const blob = new Blob([outBuffer], { type: "application/octet-stream" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${baseFilename}.riffle`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        updateStatus(`Successfully exported "${a.download}". Notes and gates populated byte-exact.`, "success");
-      }
-    })();
-  </script>
-</body>
-</html>
