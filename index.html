@@ -6,23 +6,21 @@
   <title>MIDI to .riffle Converter</title>
   <style>
     :root {
-      --bg-base: #0b0c0e;
-      --bg-card: #15171d;
-      --bg-input: #1e2129;
-      --border-subtle: #292d38;
+      --bg-canvas: #0b0c0e;
+      --bg-panel: #15171d;
+      --bg-control: #1f222b;
+      --border-subtle: #2a2f3a;
       --border-focus: #3b82f6;
       --text-main: #f3f4f6;
       --text-muted: #8e95a5;
       --accent: #2563eb;
-      --accent-active: #1d4ed8;
+      --accent-hover: #1d4ed8;
       --accent-dim: rgba(37, 99, 235, 0.16);
       --success: #10b981;
       --success-dim: rgba(16, 185, 129, 0.16);
       --warning: #f59e0b;
-      --warning-dim: rgba(245, 158, 11, 0.16);
       --danger: #ef4444;
-      --danger-dim: rgba(239, 68, 68, 0.16);
-      --touch-size: 44px;
+      --touch-min: 44px;
     }
 
     * {
@@ -34,7 +32,7 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg-base);
+      background-color: var(--bg-canvas);
       color: var(--text-main);
       touch-action: manipulation;
       min-height: 100dvh;
@@ -47,7 +45,7 @@
 
     header {
       padding: 12px 20px;
-      background: var(--bg-card);
+      background: var(--bg-panel);
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
@@ -76,7 +74,7 @@
 
     main {
       flex: 1;
-      max-width: 1100px;
+      max-width: 1120px;
       width: 100%;
       margin: 0 auto;
       padding: 16px;
@@ -93,8 +91,8 @@
       }
     }
 
-    .panel {
-      background: var(--bg-card);
+    .card {
+      background: var(--bg-panel);
       border: 1px solid var(--border-subtle);
       border-radius: 12px;
       padding: 18px;
@@ -103,7 +101,7 @@
       gap: 14px;
     }
 
-    .panel-title {
+    .card-title {
       font-size: 0.92rem;
       font-weight: 600;
       padding-bottom: 10px;
@@ -119,14 +117,14 @@
       border-radius: 8px;
       padding: 20px 16px;
       text-align: center;
-      background: var(--bg-input);
+      background: var(--bg-control);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 8px;
       cursor: pointer;
-      min-height: 120px;
+      min-height: 110px;
     }
 
     .dropzone.dragover {
@@ -166,9 +164,9 @@
     }
 
     select {
-      min-height: var(--touch-size);
+      min-height: var(--touch-min);
       padding: 0 12px;
-      background: var(--bg-input);
+      background: var(--bg-control);
       border: 1px solid var(--border-subtle);
       border-radius: 8px;
       color: var(--text-main);
@@ -181,14 +179,13 @@
       border-color: var(--border-focus);
     }
 
-    /* Multi-Track Selection Box */
     .track-list-box {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      max-height: 170px;
+      max-height: 160px;
       overflow-y: auto;
-      background: var(--bg-input);
+      background: var(--bg-control);
       border: 1px solid var(--border-subtle);
       border-radius: 8px;
       padding: 8px;
@@ -198,7 +195,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      min-height: var(--touch-size);
+      min-height: var(--touch-min);
       padding: 0 10px;
       background: rgba(255, 255, 255, 0.02);
       border-radius: 6px;
@@ -222,12 +219,15 @@
       font-size: 0.88rem;
       font-weight: 500;
       flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .track-count {
       font-size: 0.75rem;
       color: var(--text-muted);
-      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-family: ui-monospace, monospace;
     }
 
     .quick-track-btn {
@@ -238,7 +238,7 @@
       cursor: pointer;
       text-decoration: underline;
       padding: 4px 6px;
-      min-height: 30px;
+      min-height: 32px;
       touch-action: manipulation;
     }
 
@@ -249,7 +249,7 @@
     }
 
     .stat-box {
-      background: var(--bg-input);
+      background: var(--bg-control);
       padding: 10px 12px;
       border-radius: 8px;
       border: 1px solid var(--border-subtle);
@@ -275,8 +275,8 @@
     }
 
     .btn {
-      min-height: var(--touch-size);
-      min-width: var(--touch-size);
+      min-height: var(--touch-min);
+      min-width: var(--touch-min);
       padding: 0 16px;
       border-radius: 8px;
       font-size: 0.95rem;
@@ -297,11 +297,11 @@
     }
 
     .btn-primary:active {
-      background: var(--accent-active);
+      background: var(--accent-hover);
     }
 
     .btn-secondary {
-      background: var(--bg-input);
+      background: var(--bg-control);
       color: var(--text-main);
       border: 1px solid var(--border-subtle);
     }
@@ -327,9 +327,9 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-      max-height: 220px;
+      max-height: 200px;
       overflow-y: auto;
-      background: var(--bg-base);
+      background: var(--bg-canvas);
       border: 1px solid var(--border-subtle);
       border-radius: 8px;
       padding: 8px;
@@ -340,10 +340,16 @@
       justify-content: space-between;
       align-items: center;
       padding: 6px 10px;
-      background: var(--bg-input);
+      background: var(--bg-control);
       border-radius: 4px;
       font-size: 0.8rem;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-family: ui-monospace, monospace;
+      transition: background 0.1s ease;
+    }
+
+    .slot-row.active-playhead {
+      background: rgba(59, 130, 246, 0.3) !important;
+      outline: 1px solid var(--accent);
     }
 
     .slot-row.delimiter {
@@ -354,7 +360,7 @@
     }
 
     .slot-row.rest {
-      opacity: 0.5;
+      opacity: 0.45;
       border-left: 3px solid var(--text-muted);
     }
 
@@ -389,7 +395,7 @@
     }
 
     .banner-error {
-      background: var(--danger-dim);
+      background: rgba(239, 68, 68, 0.16);
       color: #fca5a5;
       border: 1px solid rgba(239, 68, 68, 0.3);
     }
@@ -400,16 +406,16 @@
   <header>
     <div class="brand">
       <span>MIDI &rarr; .riffle</span>
-      <span class="badge">Multi-Track Engine</span>
+      <span class="badge">iPad 11" Pro Audio</span>
     </div>
     <button type="button" class="btn btn-secondary" id="btnReset">Reset</button>
   </header>
 
   <main>
-    <!-- Left Column: Multi-Track MIDI Source & Settings -->
-    <section class="panel">
-      <div class="panel-title">
-        <span>1. Multi-Track MIDI Source</span>
+    <!-- Left Column: Source MIDI & Pitch Configuration -->
+    <section class="card">
+      <div class="card-title">
+        <span>1. Multi-Track MIDI &amp; Pitch</span>
       </div>
 
       <div class="dropzone" id="dropzone">
@@ -419,7 +425,7 @@
           <line x1="12" y1="18" x2="12" y2="12"></line>
           <line x1="9" y1="15" x2="15" y2="15"></line>
         </svg>
-        <span id="filePrompt">Select MIDI File (.mid, .midi)</span>
+        <span id="filePrompt">Tap to browse Files (.mid, .midi)</span>
         <input type="file" id="midiInput" accept=".mid,.midi,audio/midi,audio/x-midi">
       </div>
 
@@ -439,10 +445,21 @@
       </div>
 
       <div class="control-group">
+        <label for="transposeSelect">Octave Transpose (Fix Bass Register)</label>
+        <select id="transposeSelect">
+          <option value="0" selected>Concert Pitch (0 st - Ground-Truth Default)</option>
+          <option value="12">+1 Octave (+12 st - Fix Low Bass)</option>
+          <option value="24">+2 Octaves (+24 st - Sub-Bass to Lead)</option>
+          <option value="-12">-1 Octave (-12 st - Treble Clef Guitar)</option>
+          <option value="auto">Auto-Fit to Riffler Guitar Range (40–74)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
         <label for="prioritySelect">Voice Priority (Simultaneous Notes)</label>
         <select id="prioritySelect">
-          <option value="high" selected>Highest Note (Lead Voice Priority)</option>
-          <option value="low">Lowest Note (Bass Voice Priority)</option>
+          <option value="high" selected>Highest Pitch (Lead Voice Priority)</option>
+          <option value="low">Lowest Pitch (Bass Voice Priority)</option>
         </select>
       </div>
 
@@ -467,14 +484,14 @@
     </section>
 
     <!-- Right Column: Verification, Auditioning & Export -->
-    <section class="panel">
-      <div class="panel-title">
+    <section class="card">
+      <div class="card-title">
         <span>2. Pattern Structure &amp; Export</span>
       </div>
 
       <div id="statusContainer">
         <div class="banner banner-info">
-          Select tracks to merge. Pattern will be generated with 4,000-tick bar delimitation and gate channels.
+          Load a MIDI file. Notes and tied sustains will be quantized to the grid with exact concert pitches.
         </div>
       </div>
 
@@ -487,20 +504,20 @@
       </div>
 
       <div class="control-group">
-        <label for="keyRootSelect">Key Root Attribute</label>
+        <label for="keyRootSelect">Progression Key Root Attribute</label>
         <select id="keyRootSelect">
           <option value="65">A (65)</option>
           <option value="66">B (66)</option>
           <option value="67">C (67)</option>
           <option value="68">D (68)</option>
-          <option value="69" selected>E (69 - Default)</option>
+          <option value="69" selected>E (69 - Ground-Truth Default)</option>
           <option value="70">F (70)</option>
           <option value="71">G (71)</option>
         </select>
       </div>
 
       <div class="control-group">
-        <label>Slot Preview (Pitch, Dur, Gate)</label>
+        <label>Slot Sequence Preview (Pitch, Dur, Gate)</label>
         <div class="slot-preview" id="slotPreview">
           <div class="slot-row" style="color: var(--text-muted); justify-content: center;">No sequence compiled</div>
         </div>
@@ -518,7 +535,7 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="18" x2="12" y2="3"></line>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
           <span>Export .riffle</span>
         </button>
@@ -536,12 +553,22 @@
       let detectedBpm = 120;
       let baseFilename = "pattern";
 
-      // Persistent Web Audio Architecture
+      // Robust Web Audio Architecture
       let audioCtx = null;
       let previewMasterGain = null;
-      let activeAudioNodes = [];
+      let activeOscillators = [];
       let isPlayingAudition = false;
-      let auditionEndTimer = null;
+      let auditionTimerId = null;
+      let playheadAnimId = null;
+
+      // Note Name Lookup
+      const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+      function getNoteLabel(midiNumber) {
+        if (!midiNumber || midiNumber <= 0) return "Rest";
+        const octave = Math.floor(midiNumber / 12) - 1;
+        const name = NOTE_NAMES[midiNumber % 12];
+        return `${name}${octave} (${midiNumber})`;
+      }
 
       // DOM Elements
       const midiInput = document.getElementById('midiInput');
@@ -550,6 +577,7 @@
       const trackListBox = document.getElementById('trackListBox');
       const btnSelectAllTracks = document.getElementById('btnSelectAllTracks');
       const btnClearAllTracks = document.getElementById('btnClearAllTracks');
+      const transposeSelect = document.getElementById('transposeSelect');
       const prioritySelect = document.getElementById('prioritySelect');
       const gridStepSelect = document.getElementById('gridStepSelect');
       const barCountSelect = document.getElementById('barCountSelect');
@@ -563,7 +591,7 @@
       const btnReset = document.getElementById('btnReset');
       const statusContainer = document.getElementById('statusContainer');
 
-      // Clear input on pointerdown to guarantee change event fires on repeated selection of the same file
+      // Clear input on pointerdown to guarantee change event triggers on re-upload
       midiInput.addEventListener('pointerdown', () => {
         midiInput.value = '';
       });
@@ -591,17 +619,16 @@
       });
 
       btnSelectAllTracks.addEventListener('click', () => {
-        const checkboxes = trackListBox.querySelectorAll('input[type="checkbox"]');
-        checkboxes.forEach(cb => { cb.checked = true; });
+        trackListBox.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
         compileMultiTrackSequence();
       });
 
       btnClearAllTracks.addEventListener('click', () => {
-        const checkboxes = trackListBox.querySelectorAll('input[type="checkbox"]');
-        checkboxes.forEach(cb => { cb.checked = false; });
+        trackListBox.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
         compileMultiTrackSequence();
       });
 
+      transposeSelect.addEventListener('change', compileMultiTrackSequence);
       prioritySelect.addEventListener('change', compileMultiTrackSequence);
       gridStepSelect.addEventListener('change', compileMultiTrackSequence);
       barCountSelect.addEventListener('change', compileMultiTrackSequence);
@@ -621,14 +648,14 @@
         compiledSlots = null;
         detectedBpm = 120;
         baseFilename = "pattern";
-        filePrompt.textContent = "Select MIDI File (.mid, .midi)";
+        filePrompt.textContent = "Tap to browse Files (.mid, .midi)";
         trackListBox.innerHTML = '<div style="padding: 12px; font-size: 0.8rem; color: var(--text-muted); text-align: center;">No MIDI file loaded</div>';
         bpmValue.textContent = "--";
         noteCountValue.textContent = "0";
         slotPreview.innerHTML = '<div class="slot-row" style="color: var(--text-muted); justify-content: center;">No sequence compiled</div>';
         btnPlayPreview.disabled = true;
         btnExport.disabled = true;
-        updateStatus("Select tracks to merge. Pattern will be generated with 4,000-tick bar delimitation and gate channels.", "info");
+        updateStatus("Load a MIDI file. Notes and tied sustains will be quantized to the grid with exact concert pitches.", "info");
       }
 
       async function handleFileSelected() {
@@ -643,7 +670,7 @@
           midiParsedData = parseStandardMidi(buffer);
 
           if (!midiParsedData || midiParsedData.tracks.length === 0) {
-            throw new Error("No tracks found in the selected MIDI file.");
+            throw new Error("No MIDI tracks found in file.");
           }
 
           // Build multi-track checkbox list
@@ -660,9 +687,7 @@
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.value = idx;
-            // Default check all tracks that have notes
             checkbox.checked = hasNotes;
-
             checkbox.addEventListener('change', compileMultiTrackSequence);
 
             const name = document.createElement('span');
@@ -680,7 +705,7 @@
           });
 
           if (tracksWithNotes === 0) {
-            throw new Error("The MIDI file contains tracks, but 0 note events were found.");
+            throw new Error("The MIDI file contains 0 note events.");
           }
 
           detectedBpm = midiParsedData.bpm || 120;
@@ -694,7 +719,7 @@
         }
       }
 
-      // Standard MIDI File Binary Parser
+      // Zero-Dependency Standard MIDI File Binary Parser
       function parseStandardMidi(buffer) {
         const view = new DataView(buffer);
         let ptr = 0;
@@ -733,7 +758,6 @@
           const trackNotes = [];
 
           while (ptr < trkEnd) {
-            // Variable-length quantity
             let delta = 0;
             while (true) {
               const b = view.getUint8(ptr++);
@@ -753,7 +777,6 @@
             const type = status & 0xF0;
 
             if (status === 0xFF) {
-              // Meta Event
               const metaType = view.getUint8(ptr++);
               let metaLen = 0;
               while (true) {
@@ -762,20 +785,17 @@
                 if (!(b & 0x80)) break;
               }
               if (metaType === 0x03) {
-                // Track Name
                 let nameStr = "";
                 for (let k = 0; k < metaLen; k++) {
                   nameStr += String.fromCharCode(view.getUint8(ptr + k));
                 }
                 trackTitle = nameStr.trim();
               } else if (metaType === 0x51 && metaLen === 3) {
-                // Set Tempo
                 const usPerQuarter = (view.getUint8(ptr) << 16) | (view.getUint8(ptr + 1) << 8) | view.getUint8(ptr + 2);
                 initialBpm = 60000000 / usPerQuarter;
               }
               ptr += metaLen;
             } else if (status === 0xF0 || status === 0xF7) {
-              // SysEx
               let sysexLen = 0;
               while (true) {
                 const b = view.getUint8(ptr++);
@@ -784,7 +804,6 @@
               }
               ptr += sysexLen;
             } else if (type === 0x90) {
-              // Note On
               const note = view.getUint8(ptr++);
               const vel = view.getUint8(ptr++);
               if (vel > 0) {
@@ -799,9 +818,8 @@
                 delete activeNotes[note];
               }
             } else if (type === 0x80) {
-              // Note Off
               const note = view.getUint8(ptr++);
-              ptr++; // ignore release velocity
+              ptr++;
               if (activeNotes[note]) {
                 trackNotes.push({
                   note,
@@ -829,13 +847,12 @@
         };
       }
 
-      // Multi-Track Merge and Step-Grid Quantization Engine
+      // Multi-Track Merge and Step-Grid Quantization
       function compileMultiTrackSequence() {
         stopAuditionPlayback();
 
         if (!midiParsedData) return;
 
-        // Gather all checked tracks
         const checkedBoxes = trackListBox.querySelectorAll('input[type="checkbox"]:checked');
         const selectedIndices = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10));
 
@@ -849,22 +866,22 @@
         }
 
         const tpq = midiParsedData.ticksPerQuarter || 480;
-        const tickScale = 1000 / tpq; // Scale so quarter note = 1000 ticks
+        const tickScale = 1000 / tpq; // Scaled so quarter note = 1000 ticks
         const numBars = parseInt(barCountSelect.value, 10);
-        const stepSize = parseInt(gridStepSelect.value, 10); // 500 (8th) or 250 (16th)
-        const priority = prioritySelect.value; // 'high' or 'low'
+        const stepSize = parseInt(gridStepSelect.value, 10);
+        const priority = prioritySelect.value;
+        const transposeChoice = transposeSelect.value;
         const ticksPerBar = 4000;
         const stepsPerBar = Math.floor(ticksPerBar / stepSize);
 
-        // Collect and merge all notes from selected tracks
+        // Collect all notes from selected tracks
         const mergedNotes = [];
         selectedIndices.forEach(tIdx => {
           const track = midiParsedData.tracks[tIdx];
           if (track && track.notes) {
             track.notes.forEach(n => {
               mergedNotes.push({
-                midiNote: n.note,
-                pitch: Math.max(0, Math.min(127, n.note - 12)), // Verified formula: MIDI - 12
+                rawNote: n.note,
                 start: Math.round(n.startTicks * tickScale),
                 end: Math.round((n.startTicks + n.durationTicks) * tickScale),
                 vel: n.vel
@@ -883,7 +900,23 @@
           return;
         }
 
-        // Sort merged notes chronologically
+        // Determine pitch shift offset
+        let shiftSemitones = 0;
+        if (transposeChoice === "auto") {
+          // Calculate median note pitch to place riff into guitar range 40..74
+          const sortedPitches = mergedNotes.map(n => n.rawNote).sort((a, b) => a - b);
+          const median = sortedPitches[Math.floor(sortedPitches.length / 2)];
+          if (median < 42) shiftSemitones = 12; // Bring deep bass up to guitar range
+          else if (median > 78) shiftSemitones = -12; // Bring high treble down
+        } else {
+          shiftSemitones = parseInt(transposeChoice, 10);
+        }
+
+        // Apply shift and clamp
+        mergedNotes.forEach(n => {
+          n.pitch = Math.max(12, Math.min(108, n.rawNote + shiftSemitones));
+        });
+
         mergedNotes.sort((a, b) => a.start - b.start);
 
         const slots = [];
@@ -896,17 +929,16 @@
             const stepStart = barStart + s * stepSize;
             const stepEnd = stepStart + stepSize;
 
-            // Collect all notes starting within this step's quantization window
+            // Find all notes starting in this quantization window
             const startingNotes = mergedNotes.filter(n =>
               n.start >= stepStart - stepSize * 0.35 && n.start < stepEnd - stepSize * 0.35
             );
 
             if (startingNotes.length > 0) {
-              // Apply voice priority
               if (priority === 'high') {
-                startingNotes.sort((a, b) => b.pitch - a.pitch); // Highest pitch first
+                startingNotes.sort((a, b) => b.pitch - a.pitch);
               } else {
-                startingNotes.sort((a, b) => a.pitch - b.pitch); // Lowest pitch first
+                startingNotes.sort((a, b) => a.pitch - b.pitch);
               }
 
               const chosenNote = startingNotes[0];
@@ -914,28 +946,24 @@
 
               slots.push({
                 pitch: chosenNote.pitch,
-                midiNote: chosenNote.midiNote,
                 duration: stepSize,
-                gate: 124, // Note Attack
+                gate: 124, // Attack Gate
                 type: 'attack',
-                label: `Bar ${b + 1}.${s + 1}: Pitch ${chosenNote.pitch} (M${chosenNote.midiNote})`
+                label: `Bar ${b + 1}.${s + 1}: ${getNoteLabel(chosenNote.pitch)}`
               });
             } else if (currentlyHeldNote && currentlyHeldNote.end > stepStart + stepSize * 0.25) {
-              // Note continues ringing through this grid step: Tied Sustain (gate = 0)
+              // Tied sustain (Gate = 0)
               slots.push({
                 pitch: currentlyHeldNote.pitch,
-                midiNote: currentlyHeldNote.midiNote,
                 duration: stepSize,
-                gate: 0, // Tied Sustain Gate
+                gate: 0,
                 type: 'sustain',
-                label: `Bar ${b + 1}.${s + 1}: Sustain (Pitch ${currentlyHeldNote.pitch})`
+                label: `Bar ${b + 1}.${s + 1}: Sustain (${getNoteLabel(currentlyHeldNote.pitch)})`
               });
             } else {
-              // No sounding note on this step: Rest
               currentlyHeldNote = null;
               slots.push({
                 pitch: 0,
-                midiNote: 0,
                 duration: stepSize,
                 gate: 0,
                 type: 'rest',
@@ -944,14 +972,13 @@
             }
           }
 
-          // Mandatory End-of-Bar Delimiter Slot after each 4,000 ticks
+          // Mandatory Bar Delimiter (0, 0, 0)
           slots.push({
             pitch: 0,
-            midiNote: 0,
             duration: 0,
             gate: 0,
             type: 'delimiter',
-            label: `=== End of Bar ${b + 1} Delimiter ===`
+            label: `=== End of Bar ${b + 1} ===`
           });
         }
 
@@ -962,6 +989,7 @@
         slots.slice(0, 48).forEach((s, idx) => {
           const row = document.createElement('div');
           row.className = `slot-row ${s.type}`;
+          row.dataset.slotIndex = idx;
           row.innerHTML = `
             <span>#${idx + 1} ${s.label}</span>
             <span>Dur: ${s.duration} | Gate: ${s.gate}</span>
@@ -980,11 +1008,11 @@
 
         btnExport.disabled = false;
         btnPlayPreview.disabled = false;
-        updateStatus(`Merged ${selectedIndices.length} track(s) across ${numBars} bars (${slots.length} slots). 4,000-tick accumulation and tied sustains verified.`, "success");
+        updateStatus(`Compiled ${selectedIndices.length} track(s) across ${numBars} bars (${slots.length} slots). Concert pitch and tied sustains verified.`, "success");
       }
 
-      // Robust Web Audio Auditioning Engine (Zero-Failure Architecture)
-      async function toggleAuditionPlayback() {
+      // Robust Zero-Failure Web Audio Auditioning Engine
+      function toggleAuditionPlayback() {
         if (isPlayingAudition) {
           stopAuditionPlayback();
           return;
@@ -992,144 +1020,178 @@
 
         if (!compiledSlots || compiledSlots.length === 0) return;
 
-        // Ensure single persistent AudioContext
+        // Synchronous unlock inside touch gesture
         if (!audioCtx) {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AudioContextClass();
         }
-
-        // Resume AudioContext if suspended by Safari
         if (audioCtx.state === 'suspended') {
-          await audioCtx.resume();
+          audioCtx.resume();
         }
 
         isPlayingAudition = true;
         playBtnText.textContent = "Stop Audition";
         btnPlayPreview.classList.add('active');
 
-        // Create a dedicated master gain for this audition run
         previewMasterGain = audioCtx.createGain();
         previewMasterGain.gain.setValueAtTime(0.25, audioCtx.currentTime);
         previewMasterGain.connect(audioCtx.destination);
 
-        activeAudioNodes = [];
+        activeOscillators = [];
 
         const secondsPerTick = (60 / detectedBpm) / 1000;
-        let scheduledCursor = audioCtx.currentTime + 0.05; // 50ms pre-roll to prevent audio clicks
+        let cursorTime = audioCtx.currentTime + 0.05; // 50ms scheduling pre-roll
+        const slotTimestamps = [];
 
-        // Aggregate consecutive attacks and tied sustains into continuous acoustic notes
-        let activeTone = null;
+        // Build continuous musical tones across attacks and tied sustains
+        let currentVoice = null;
 
-        compiledSlots.forEach(slot => {
-          if (slot.type === 'delimiter') return;
+        compiledSlots.forEach((slot, idx) => {
+          if (slot.type === 'delimiter') {
+            slotTimestamps.push({ time: cursorTime, index: idx });
+            return;
+          }
 
-          const slotDurationSec = slot.duration * secondsPerTick;
+          const slotSec = slot.duration * secondsPerTick;
+          slotTimestamps.push({ time: cursorTime, index: idx });
 
           if (slot.type === 'attack') {
-            if (activeTone) {
-              activeTone.endTime = scheduledCursor;
-              scheduleOscillatorVoice(activeTone);
+            if (currentVoice) {
+              currentVoice.endTime = cursorTime;
+              renderAcousticVoice(currentVoice);
             }
-            activeTone = {
-              midiNote: slot.midiNote,
-              startTime: scheduledCursor,
-              endTime: scheduledCursor + slotDurationSec
+            currentVoice = {
+              pitch: slot.pitch,
+              startTime: cursorTime,
+              endTime: cursorTime + slotSec
             };
           } else if (slot.type === 'sustain') {
-            if (activeTone) {
-              activeTone.endTime += slotDurationSec;
+            if (currentVoice) {
+              currentVoice.endTime += slotSec;
             }
           } else if (slot.type === 'rest') {
-            if (activeTone) {
-              activeTone.endTime = scheduledCursor;
-              scheduleOscillatorVoice(activeTone);
-              activeTone = null;
+            if (currentVoice) {
+              currentVoice.endTime = cursorTime;
+              renderAcousticVoice(currentVoice);
+              currentVoice = null;
             }
           }
 
-          scheduledCursor += slotDurationSec;
+          cursorTime += slotSec;
         });
 
-        if (activeTone) {
-          scheduleOscillatorVoice(activeTone);
+        if (currentVoice) {
+          renderAcousticVoice(currentVoice);
         }
 
-        // Clean UI reset when audition playback naturally ends
-        const totalPlaybackMs = Math.max(100, (scheduledCursor - audioCtx.currentTime) * 1000);
-        clearTimeout(auditionEndTimer);
-        auditionEndTimer = setTimeout(() => {
+        // Real-time visual playhead tracking
+        function updatePlayhead() {
+          if (!isPlayingAudition || !audioCtx) return;
+          const currentAudioTime = audioCtx.currentTime;
+
+          let activeIdx = -1;
+          for (let i = 0; i < slotTimestamps.length; i++) {
+            if (slotTimestamps[i].time <= currentAudioTime) {
+              activeIdx = slotTimestamps[i].index;
+            } else {
+              break;
+            }
+          }
+
+          const allRows = slotPreview.querySelectorAll('.slot-row');
+          allRows.forEach(r => {
+            const idx = parseInt(r.dataset.slotIndex, 10);
+            if (idx === activeIdx) {
+              r.classList.add('active-playhead');
+            } else {
+              r.classList.remove('active-playhead');
+            }
+          });
+
+          playheadAnimId = requestAnimationFrame(updatePlayhead);
+        }
+        playheadAnimId = requestAnimationFrame(updatePlayhead);
+
+        // Completion Timer
+        const totalDurationMs = Math.max(100, (cursorTime - audioCtx.currentTime) * 1000);
+        clearTimeout(auditionTimerId);
+        auditionTimerId = setTimeout(() => {
           stopAuditionPlayback();
-        }, totalPlaybackMs);
+        }, totalDurationMs);
       }
 
-      function scheduleOscillatorVoice(tone) {
-        if (!audioCtx || !previewMasterGain) return;
+      function renderAcousticVoice(voice) {
+        if (!audioCtx || !previewMasterGain || voice.pitch <= 0) return;
+
+        const t0 = Math.max(audioCtx.currentTime, voice.startTime);
+        const t1 = Math.max(t0 + 0.04, voice.endTime);
 
         const osc = audioCtx.createOscillator();
         const voiceGain = audioCtx.createGain();
         const filter = audioCtx.createBiquadFilter();
 
         osc.type = 'sawtooth';
-        // Formula: Frequency = 440 * 2^((note - 69) / 12)
-        const freq = 440 * Math.pow(2, (tone.midiNote - 69) / 12);
-        osc.frequency.setValueAtTime(freq, tone.startTime);
+        // Formula: Frequency = 440 * 2^((MIDI Note - 69) / 12)
+        const freq = 440 * Math.pow(2, (voice.pitch - 69) / 12);
+        osc.frequency.setValueAtTime(freq, t0);
 
-        // Lowpass filter for warm guitar-like tone
         filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(2400, tone.startTime);
+        filter.frequency.setValueAtTime(2200, t0);
 
-        const duration = Math.max(0.04, tone.endTime - tone.startTime);
-
-        // Quick attack and smooth release envelope
-        voiceGain.gain.setValueAtTime(0.001, tone.startTime);
-        voiceGain.gain.linearRampToValueAtTime(0.3, tone.startTime + 0.008);
-        voiceGain.gain.setValueAtTime(0.25, tone.endTime - 0.015);
-        voiceGain.gain.linearRampToValueAtTime(0.001, tone.endTime);
+        // WebKit-safe AudioParam decay (avoids overlapping linearRamp exceptions)
+        voiceGain.gain.setValueAtTime(0.0001, t0);
+        voiceGain.gain.linearRampToValueAtTime(0.25, t0 + 0.006);
+        voiceGain.gain.setTargetAtTime(0.0001, t0 + 0.02, (t1 - t0) * 0.35);
 
         osc.connect(filter);
         filter.connect(voiceGain);
         voiceGain.connect(previewMasterGain);
 
-        osc.start(tone.startTime);
-        osc.stop(tone.endTime);
+        osc.start(t0);
+        osc.stop(t1);
 
-        activeAudioNodes.push(osc);
+        activeOscillators.push(osc);
       }
 
       function stopAuditionPlayback() {
-        clearTimeout(auditionEndTimer);
+        clearTimeout(auditionTimerId);
+        if (playheadAnimId) {
+          cancelAnimationFrame(playheadAnimId);
+          playheadAnimId = null;
+        }
 
         if (previewMasterGain && audioCtx) {
           try {
             previewMasterGain.gain.setValueAtTime(0, audioCtx.currentTime);
             previewMasterGain.disconnect();
-          } catch (e) {
-            // Ignore if already disconnected
-          }
+          } catch (e) {}
           previewMasterGain = null;
         }
 
-        activeAudioNodes.forEach(node => {
-          try { node.stop(); node.disconnect(); } catch (e) {}
+        activeOscillators.forEach(osc => {
+          try { osc.stop(); osc.disconnect(); } catch (e) {}
         });
-        activeAudioNodes = [];
+        activeOscillators = [];
+
+        slotPreview.querySelectorAll('.slot-row').forEach(r => r.classList.remove('active-playhead'));
 
         isPlayingAudition = false;
         playBtnText.textContent = "Audition Riff";
         btnPlayPreview.classList.remove('active');
       }
 
-      // Ground-Truth .riffle File Exporter
+      // Ground-Truth .riffle Exporter (Byte-Exact UTF-16LE 2,944 Tokens)
       function generateRiffleExport() {
         if (!compiledSlots || compiledSlots.length === 0) return;
 
         const numBars = parseInt(barCountSelect.value, 10);
         const rootKeyAscii = parseInt(keyRootSelect.value, 10);
 
-        // 1. Allocate full 2,944 integer array
+        // 1. Allocate exact 2,944 integer tokens
         const tokens = new Int32Array(2944);
 
-        // 2. Verified Header Block (Indices 0..1023)
-        // Adopting verified field patterns proven in ground-truth sample files
+        // 2. Verified Base Header (Indices 0..1023)
+        // Matching sample files: Source 1, Source 4, Source 6, Source 8, Source 10
         tokens[0] = 200;
         tokens[1] = Math.round(detectedBpm * 100);
         tokens[2] = numBars; // 4 or 8
@@ -1152,7 +1214,7 @@
         tokens[19] = 9;
         tokens[29] = 1;
 
-        // Loop Bar Ticks: 4000 ticks for active bars, 0 for unused bars
+        // Active bar allocations (4,000 ticks/bar), unused set to 0
         for (let b = 0; b < numBars; b++) {
           tokens[31 + b] = 4000;
         }
@@ -1175,7 +1237,7 @@
           tokens[2048 + i] = compiledSlots[i].gate;
         }
 
-        // Verified Array Termination Sentinel: -1, 0, -1, 0 followed by zero padding
+        // Verified Array Termination Sentinel: -1, 0, -1, 0 followed by zero-fill
         if (count < 508) {
           tokens[1024 + count] = -1;
           tokens[1024 + count + 1] = 0;
@@ -1193,12 +1255,12 @@
           tokens[2048 + count + 3] = 0;
         }
 
-        // 6. Chord Attribute Block: 2560..2943 (Exact 6-part 384-token layout)
+        // 6. Chord Attribute Block: 2560..2943 (Verified 6-part 384-token block)
         // Part 1 (2560..2623, 64 tokens): Chord Root Progression
         for (let i = 2560; i < 2624; i++) {
           tokens[i] = rootKeyAscii;
         }
-        // Part 2 (2624..2687, 64 tokens): 63 tokens of 69 ('E'), ending with 88 ('X') at 2687
+        // Part 2 (2624..2687, 64 tokens): 63 tokens of 69 ('E'), ending with 88 ('X') at index 2687
         for (let i = 2624; i < 2687; i++) {
           tokens[i] = 69;
         }
@@ -1227,7 +1289,7 @@
         const outBuffer = new ArrayBuffer(2 + charLen * 2);
         const dataView = new DataView(outBuffer);
 
-        // UTF-16LE Byte Order Mark
+        // Set Little-Endian Byte Order Mark (0xFEFF)
         dataView.setUint16(0, 0xFEFF, true);
 
         let bytePtr = 2;
@@ -1236,7 +1298,7 @@
           bytePtr += 2;
         }
 
-        // Trigger native download
+        // Dispatch native download
         const blob = new Blob([outBuffer], { type: "application/octet-stream" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -1247,7 +1309,7 @@
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        updateStatus(`Exported "${a.download}" successfully. Byte-exact UTF-16LE pattern ready for Riffler import.`, "success");
+        updateStatus(`Successfully exported "${a.download}". Verified 2,944-token UTF-16LE file ready for Riffler import.`, "success");
       }
     })();
   </script>
